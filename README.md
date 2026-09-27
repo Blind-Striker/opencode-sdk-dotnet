@@ -1,152 +1,87 @@
 # opencode SDK for .NET
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![NuGet](https://img.shields.io/nuget/vpre/OpenCodeAI.Sdk)](https://www.nuget.org/packages/OpenCodeAI.Sdk) [![CI](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml/badge.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml) [![Linux Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Flinux%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/linux/blind-striker/opencode-sdk-dotnet/master)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/LICENSE) [![NuGet](https://img.shields.io/nuget/vpre/OpenCodeAI.Sdk)](https://www.nuget.org/packages/OpenCodeAI.Sdk) [![CI](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml/badge.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml) [![Linux Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Flinux%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/linux/blind-striker/opencode-sdk-dotnet/master)
 
-> **🚀 Quick Start**: [Install](#-installation) | [Quick start](#-quick-start) | [Guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/getting-started.md)
+> **🚀 Quick Start**: [Install](#-installation) | [Quick start](#-quick-start) | [Guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/getting-started.md) | [API coverage](#-api-coverage)
 
 > **Unofficial.** This project is not affiliated with or endorsed by the
 > [opencode](https://opencode.ai) team.
 
-A strongly typed .NET client for [opencode](https://github.com/anomalyco/opencode) — the protocol
-surface every opencode front-end (TUI, desktop, web UI, plugins) goes through. This SDK speaks the
-OpenCode 2.x server HTTP API; OpenCode 1.x's server API is not supported. The callable surface is
-generated from a pinned OpenAPI snapshot and rides one hand-written transport runtime, so what you
-call is exactly what the server declares.
+A strongly typed .NET client for the [opencode](https://github.com/anomalyco/opencode) server — the
+HTTP API that every opencode front-end (TUI, desktop, web UI, plugins) uses. The SDK speaks the
+OpenCode 2.x API; the 1.x server API is not supported.
+
+```csharp
+await using var server = await OpenCodeServer.StartAsync();
+using var client = server.CreateClient();
+
+var created = await client.Sessions.CreateSessionAsync(new SessionCreateRequest { Title = "hello from .NET" });
+Console.WriteLine($"session {created.Session.Id}");
+```
 
 ---
 
 ## 🎉 Project Status
 
-**Published and pre-1.0; the protocol surface is complete.** Everything below is landed and
-covered. All three of opencode's connection modes are open: a private server the SDK starts, an
-endpoint you already run, and the background service the CLI registers — discovered, ensured, or
-stopped the way the CLI does it.
+**Pre-1.0, and the protocol surface is complete.** Every operation in the pinned OpenAPI snapshot
+is callable: **all 138** — 136 generated, and two terminal connections through hand-written
+WebSocket transports. All three connection modes work: a private server the SDK starts, a server
+you already run, and the background service that the opencode CLI registers.
 
-- ✅ **All 138 operations** callable — 136 generated, two through hand-written WebSocket
-  transports — across 27 client families: sessions, PTYs, persistent PTYs, shells, events, MCP
-  servers, integrations, providers, permissions, credentials, config, VCS, worktrees, websearch,
-  RPC, and more
-- ✅ **One test suite on three operating systems** — Windows is the fullest leg, the only one that
-  adds the `net472` assemblies; Linux and macOS run the same suite on `net8.0`, `net9.0`, and
-  `net10.0`. The [test badges](#build--test-matrix) carry the current counts
-- ✅ **Server-sent event streams**, global and per-session, over the same transport as one-shot calls
-- ✅ **PTY and persistent-PTY terminal sessions** through hand-written WebSocket doors
-- ✅ **A launcher** — `OpenCodeServer.StartAsync()` starts, monitors, and stops a private
-  `opencode serve` child for you
-- ✅ **Background-service discovery** — `OpenCodeServer.DiscoverAsync()` finds the daemon the
-  opencode CLI registers for every client on the machine, through the CLI's own registration
-  rules, and hands you a non-owning handle; proven against the pinned service on every
-  target-framework leg
-- ✅ **Background-service stop** — `OpenCodeServer.StopAsync()` is `opencode service stop` for
-  your code: persistent terminals shut down, the registration re-read before every signal, the
-  process identified by pid and start time, `SIGTERM` then `SIGKILL` (hard kills on Windows);
-  proven against the pinned service on every target-framework leg
-- ✅ **Background-service ensure** — `OpenCodeServer.EnsureAsync()` reuses the registered daemon or
-  starts one through the CLI's own election: detached contenders, version policy, recovery of an
-  unresponsive daemon, and the persistent-terminal handoff; proven against the pinned service and,
-  on the weekly consumer leg, the published CLI
-- ✅ **Source-generated `System.Text.Json`** with no reflection fallback; both packages declare
-  `IsAotCompatible` on `net10.0`
-- 🚧 **Pre-1.0 and iterating** — released as `0.9.0-preview.N`; the public surface is
-  locked by a reviewed baseline but may still move before `1.0.0`. See [CHANGELOG.md](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/CHANGELOG.md)
-- 🔜 An **MCP server** over this SDK — planned, not started
-
-**Versioning**: the SDK builds against an accepted OpenAPI snapshot taken at an upstream release
-tag, never a live branch. The exact commit and the refresh procedure live in
-[`spec/SNAPSHOT.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/spec/SNAPSHOT.md), which owns that pin.
-
-## 🚀 Platform Compatibility & Quality Status
-
-### Supported Platforms
-
-- [.NET 10](https://dotnet.microsoft.com/download/dotnet/10.0) | [.NET 9](https://dotnet.microsoft.com/download/dotnet/9.0) | [.NET 8](https://dotnet.microsoft.com/download/dotnet/8.0)
-- [.NET Standard 2.0](https://docs.microsoft.com/en-us/dotnet/standard/net-standard)
-- [.NET Framework 4.7.2 and Above](https://dotnet.microsoft.com/download/dotnet-framework)
-
-Both packages target the same set: `netstandard2.0;net472;net8.0;net9.0;net10.0`. The downlevel
-targets are not a compatibility shim — the whole suite runs on `net472` on Windows,
-real-process launcher acceptance included, and on `net8.0`/`net9.0`/`net10.0` on all three OSes.
-`netstandard2.0` is a consumption target rather than a test target: it has no runtime to execute
-on, and the `net472` leg is what exercises its compile surface. A .NET Framework project needs a
-newer C# version than its default; the
-[getting-started guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/getting-started.md#net-framework-projects)
-has the two properties to set.
-
-### Build & Test Matrix
-
-| Category | Platform/Type | Status | Description |
-|----------|---------------|--------|-------------|
-| **🔧 Build** | Cross-Platform | [![CI](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml/badge.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml) | Matrix: Windows, Linux, macOS |
-| **🧪 Tests** | Linux | [![Linux Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Flinux%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/linux/blind-striker/opencode-sdk-dotnet/master) | `net8.0`, `net9.0`, `net10.0` |
-| **🧪 Tests** | Windows | [![Windows Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Fwindows%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/windows/blind-striker/opencode-sdk-dotnet/master) | `net472` plus every modern target |
-| **🧪 Tests** | macOS | [![macOS Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Fmacos%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/macos/blind-striker/opencode-sdk-dotnet/master) | `net8.0`, `net9.0`, `net10.0` |
-| **📡 Consumer leg** | Linux, Windows | [![Consumer leg](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/consumer-leg.yml/badge.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/consumer-leg.yml) | Weekly and on demand: the same suite against the published `@opencode/cli` build for the pin |
-
-## 📦 Package Status
-
-| Package | NuGet.org | GitHub Packages |
-|---------|-----------|-----------------|
-| **OpenCodeAI.Sdk** | [![NuGet](https://img.shields.io/nuget/vpre/OpenCodeAI.Sdk)](https://www.nuget.org/packages/OpenCodeAI.Sdk) | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCodeAI.Sdk) |
-| **OpenCodeAI.Sdk.Extensions** | [![NuGet](https://img.shields.io/nuget/vpre/OpenCodeAI.Sdk.Extensions)](https://www.nuget.org/packages/OpenCodeAI.Sdk.Extensions) | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCodeAI.Sdk.Extensions) |
-
-## Table of Contents
-
-1. [Supported Platforms](#supported-platforms)
-2. [Why this SDK?](#-why-this-sdk)
-3. [Prerequisites](#prerequisites)
-4. [Installation](#-installation)
-5. [Quick Start](#-quick-start)
-6. [API Coverage](#-api-coverage)
-7. [Documentation](#-documentation)
-8. [Known Issues](#known-issues)
-9. [Developing](#developing)
-10. [Changelog](#changelog)
-11. [License](#license)
+- 🚧 Releases are `0.9.0-preview.N`. A reviewed baseline locks the public surface, but it can still
+  change before `1.0.0`. See [CHANGELOG.md](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/CHANGELOG.md).
+- 📌 The SDK builds against a snapshot of an upstream release tag, never a live branch.
+  [`spec/SNAPSHOT.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/spec/SNAPSHOT.md)
+  owns the exact pin and the refresh procedure.
+- 🔜 An **MCP server** over this SDK is planned, not started.
 
 ## 💡 Why this SDK?
 
 - **Typed all the way down.** Every operation has a generated request type, a generated response
-  envelope, and typed error models — including opencode's discriminator-free unions, which the
-  repository's own generator represents faithfully because off-the-shelf .NET OpenAPI generators
-  did not.
-- **One transport, every way in.** Point the client at a server you already run, let
-  `OpenCodeServer.StartAsync()` start a private one for you, or let `OpenCodeServer.DiscoverAsync()`
-  find the background service the opencode CLI registers — the same pipeline owns endpoint
-  authority, authentication, buffering, and failure mapping in all three.
-- **Errors you can branch on.** Every call throws typed exceptions by default, or returns the
-  failure as data with `OpenCodeRequestOptions.NoThrow` when a 404 is a normal answer.
-- **Broad .NET reach.** `netstandard2.0` and `net472` are first-class, so this works inside
-  .NET Framework hosts, not just modern console apps.
-- **No reflection serialization.** `System.Text.Json` source generation throughout, with no
-  reflection fallback to surprise a trimmed or AOT-published app.
-- **A pinned protocol, not a moving target.** Upstream ships releases on its own cadence; this SDK
-  builds against a reviewed snapshot of a release tag, with a receipt, so a regeneration is a
-  reviewable diff.
+  envelope, and typed error models. That includes opencode's unions without a discriminator, which
+  off-the-shelf .NET OpenAPI generators did not represent correctly.
+- **One transport for every connection mode.** The same pipeline owns endpoint authority,
+  authentication, buffering, and failure mapping, whether you start the server, point at one, or
+  discover the CLI's background service.
+- **Errors you can branch on.** A call throws a typed exception by default. With
+  `OpenCodeRequestOptions.NoThrow`, it returns the failure as data instead — useful when a 404 is a
+  normal answer.
+- **Broad .NET reach.** `netstandard2.0` and `net472` are first-class targets, so the SDK works in
+  .NET Framework hosts, not only in modern apps.
+- **No reflection serialization.** `System.Text.Json` source generation throughout. Both packages
+  declare `IsAotCompatible` on `net10.0`.
+- **A pinned protocol.** Each refresh to a new upstream release comes with a receipt, so a
+  regeneration is a diff that you can review.
 
-## Prerequisites
+## 🧭 API Coverage
 
-You need an `opencode` server. It ships from the `@opencode/cli` npm scope and installs the
-`opencode` command ([opencode.ai](https://opencode.ai)). This SDK is generated from the upstream
-release this repository pins, so install that version; later releases usually work, but they are
-not what this repository tests. The pinned release tag and its npm version are owned by
-[`spec/SNAPSHOT.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/spec/SNAPSHOT.md).
+`OpenCodeClient` exposes one sub-client per area of the API. Every sub-client is also injectable on
+its own when you use dependency injection.
 
-```sh
-npm install -g @opencode/cli@2.0.18
-```
+| Area | Entry point | Guide |
+|---|---|---|
+| Sessions, messages, prompts, session logs | `client.Sessions` | [Requests](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/requests.md), [Pagination](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/pagination.md) |
+| The global event bus | `client.Events` | [Streaming](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/streaming.md) |
+| Terminals and persistent terminals | `client.Ptys`, `client.PersistentPtys` | [Terminals](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/terminals.md) |
+| Shell commands | `client.Shells` | [Requests](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/requests.md) |
+| Files and version control | `client.FileSystem`, `client.Vcs`, `client.Worktrees` | [Requests](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/requests.md) |
+| Permissions and forms | `client.Permissions`, `client.Forms` | [Requests](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/requests.md) |
+| Models and providers | `client.Providers`, `client.LanguageModels`, `client.Credentials` | — |
+| Agents, commands, skills, plugins | `client.Agents`, `client.Commands`, `client.Skills`, `client.Plugins` | — |
+| MCP servers and integrations | `client.McpServers`, `client.Integrations` | — |
+| Configuration, projects, references | `client.Config`, `client.Projects`, `client.References` | — |
+| Server info and pairing | `client.Server` | [Connection modes](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/connection-modes.md) |
+| Locations | `client.GetLocationAsync`, `client.ReloadLocationsAsync`, `client.Debug` | [Requests](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/requests.md) |
+| Web search and RPC | `client.Websearch`, `client.Rpc` | — |
+| Operations upstream marks experimental | `client.Experimental` | — |
 
-Then either run it yourself:
-
-```sh
-OPENCODE_PASSWORD=your-password opencode serve --hostname 127.0.0.1 --port 4096
-```
-
-…or let the SDK start one for you — that is what `OpenCodeServer.StartAsync()` in the
-[quick start](#-quick-start) does, and it needs nothing running in advance.
+The two terminal connections (`pty.connect`, `persistentPty.connect`) are WebSocket upgrades that
+the HTTP pipeline cannot carry. They are fully usable through the hand-written `PtySession` and
+`PersistentPtySession` types. Nothing is declined:
+[`src/OpenCode.Sdk/.generation-incomplete`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/src/OpenCode.Sdk/.generation-incomplete)
+is the machine-readable map that the build reads.
 
 ## 📦 Installation
-
-### Stable (NuGet.org)
 
 ```bash
 dotnet add package OpenCodeAI.Sdk --prerelease
@@ -154,12 +89,18 @@ dotnet add package OpenCodeAI.Sdk.Extensions --prerelease   # dependency injecti
 ```
 
 > **The package id is not the namespace.** You install `OpenCodeAI.Sdk`, and you write
-> `using OpenCode.Sdk;` — the assemblies and every public namespace are `OpenCode.Sdk`.
-> nuget.org reserves the `OpenCode.` id prefix for an unrelated owner, so the artifact carries a
-> different name than the code inside it.
+> `using OpenCode.Sdk;`. nuget.org reserves the `OpenCode.` id prefix for an unrelated owner, so
+> only the `PackageReference` carries the `OpenCodeAI` name.
 
-The version badge above shows the latest published prerelease. Nightly builds of `master` are on
-the GitHub Packages feed below.
+You also need the `opencode` CLI, from the `@opencode/cli` npm scope. Install the release that this
+repository pins — later releases usually work, but they are not what the tests run against:
+
+```sh
+npm install -g @opencode/cli@2.0.18
+```
+
+You do not have to start it. `OpenCodeServer.StartAsync()` in the [quick start](#-quick-start)
+starts a private server for you.
 
 ### Nightly builds (GitHub Packages)
 
@@ -178,8 +119,8 @@ dotnet add package OpenCodeAI.Sdk --prerelease --source github-opencode-sdk
 dotnet add package OpenCodeAI.Sdk.Extensions --prerelease --source github-opencode-sdk
 ```
 
-Prefer keeping the token out of shell history? Commit a `nuget.config` next to your solution and
-keep the credentials in environment variables:
+<details>
+<summary>Keep the token out of shell history with a <code>nuget.config</code></summary>
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -197,24 +138,30 @@ keep the credentials in environment variables:
 </configuration>
 ```
 
-> **🔑 GitHub Packages Authentication**: GitHub Packages requires a
+</details>
+
+> **🔑 GitHub Packages authentication**: GitHub Packages requires a
 > [classic Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
-> with the `read:packages` scope, even for public packages (fine-grained tokens are not supported
-> by the NuGet registry). `--store-password-in-clear-text` is required on Linux and macOS, where
-> NuGet cannot encrypt stored credentials. Never commit a real token — the `nuget.config` above
-> reads it from the environment. Inside GitHub Actions you need no PAT at all: the workflow's own
-> `GITHUB_TOKEN` works as the password.
+> with the `read:packages` scope, even for public packages. The NuGet registry does not accept
+> fine-grained tokens. Linux and macOS need `--store-password-in-clear-text`, because NuGet cannot
+> encrypt stored credentials there. Never commit a real token. Inside GitHub Actions you need no
+> PAT: the workflow's own `GITHUB_TOKEN` works as the password.
 
 ## 🚀 Quick Start
 
+Pick the connection mode that matches where your server lives:
+
+| You want… | Use | Who stops the server |
+|---|---|---|
+| A private server for this app only | `OpenCodeServer.StartAsync()` | The SDK, when you dispose it |
+| A server you already run | `new OpenCodeClient(options)` | You |
+| The background service the CLI shares with other clients | `OpenCodeServer.DiscoverAsync()` or `EnsureAsync()` | Nobody, unless you call `StopAsync()` |
+
 ### The SDK starts the server
 
-No ambient process, no endpoint to configure — the launcher starts a private `opencode serve`
-child, mints its credential, and hands you a client bound to it. `opencode` is resolved from
-`PATH` the way a shell resolves it, `PATHEXT` included, so an npm-installed CLI's `.cmd` shim
-starts on Windows too. Disposing the server stops the child. To keep the child's output for
-diagnostics, pass an `OpenCodeServerOutput` collector in `OpenCodeServerOptions.Output` and read
-its snapshot whenever you like — bounded, and still readable when the start failed.
+The launcher starts a private `opencode serve` child, creates its password, and gives you a client
+bound to it. It resolves `opencode` from `PATH` as a shell does, `PATHEXT` included, so the npm
+`.cmd` shim works on Windows.
 
 ```csharp
 using OpenCode.Sdk;
@@ -225,9 +172,6 @@ using var client = server.CreateClient();
 
 var info = await client.Server.GetInfoAsync();
 Console.WriteLine($"opencode {info.ServerInfo.Version} (pid {info.ServerInfo.Pid})");
-
-var created = await client.Sessions.CreateSessionAsync(new SessionCreateRequest { Title = "hello from .NET" });
-Console.WriteLine($"session {created.Session.Id}: {created.Session.Title}");
 
 using var window = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 await foreach (var @event in client.Events.SubscribeAsync(window.Token))
@@ -244,22 +188,17 @@ using var client = new OpenCodeClient(new OpenCodeClientOptions
     Endpoint = new Uri("http://127.0.0.1:4096"),
     Password = Environment.GetEnvironmentVariable("OPENCODE_PASSWORD"),
 });
-
-var info = await client.Server.GetInfoAsync();
-Console.WriteLine(info.ServerInfo.Version);
 ```
 
-The client reads no environment variables of its own — resolving a password from the environment
-is the caller's decision, exactly as opencode's own CLI layers it. The one door that does read the
-environment is background-service discovery, below, and it reads only the four path variables the
-CLI itself uses to locate its registration.
+The client reads no environment variables of its own. The caller decides where the password comes
+from, as opencode's own CLI does.
 
 ### The background service the CLI runs
 
-The opencode CLI keeps one background service per user and publishes where it listens in a
-registration file. `DiscoverAsync` reads that file the way the CLI does, checks the daemon's
-authenticated status, and hands you a handle that owns nothing — disposing it never stops the
-service other clients share. Null means no ready service; start a private one, or run `opencode`.
+`DiscoverAsync` reads the CLI's registration file with the CLI's own rules and checks the daemon's
+authenticated status. It returns a handle that owns nothing: disposing it never stops the service
+that other clients share. Null means no ready service. `EnsureAsync` starts one through the CLI's
+own election when none is running.
 
 ```csharp
 var server = await OpenCodeServer.DiscoverAsync();
@@ -269,42 +208,23 @@ if (server is null)
 }
 
 using var client = server.CreateClient();
-var info = await client.Server.GetInfoAsync();
-Console.WriteLine($"opencode {info.ServerInfo.Version}, pid {server.ProcessId}, owned: {server.OwnsProcess}");
 ```
 
-`OpenCodeServer.StopAsync()` is the one deliberate way to end that shared service — `opencode
-service stop` for your code: it shuts the daemon's persistent terminals down, ends the registered
-process (`SIGTERM`, then `SIGKILL`; hard kills on Windows), and removes the registration, checking
-before every signal that the file still names the same service and the pid still belongs to the
-same process. `OpenCodeServerDiscoverOptions` selects a service channel, names a registration file directly, or
-requires an exact version; the
-[connection guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/connection-modes.md#️-discovering-the-background-service)
-has the full table.
+The [connection guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/connection-modes.md)
+has every option, `EnsureAsync`, `StopAsync`, launcher output capture, and pairing another client.
 
 ### Dependency injection
 
-`OpenCode.Sdk.Extensions` registers one singleton client owning its transport for the container's
-lifetime, plus every sub-client resolved from that same instance — so inject `SessionsClient`,
-`EventsClient`, or `PtysClient` directly.
+`OpenCode.Sdk.Extensions` registers one singleton client that owns its transport for the
+container's lifetime. The client is thread-safe. Every sub-client resolves from that same instance,
+so you can inject `SessionsClient`, `EventsClient`, or `PtysClient` directly.
 
 ```csharp
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using OpenCode.Sdk;
-using OpenCode.Sdk.Models;
-
-var builder = Host.CreateApplicationBuilder(args);
-
 builder.Services.AddOpenCode(options =>
 {
     options.Endpoint = new Uri("http://127.0.0.1:4096");
     options.Password = Environment.GetEnvironmentVariable("OPENCODE_PASSWORD");
 });
-
-builder.Services.AddHostedService<SessionWorker>();
-
-await builder.Build().RunAsync();
 
 internal sealed class SessionWorker(SessionsClient sessions) : BackgroundService
 {
@@ -319,22 +239,9 @@ internal sealed class SessionWorker(SessionsClient sessions) : BackgroundService
 }
 ```
 
-`AddOpenCode(IConfiguration)` binds the same options from a configuration section instead. That
-overload is annotated `[RequiresDynamicCode]` / `[RequiresUnreferencedCode]` because configuration
-binding reflects over the options type — under trimming or native AOT, prefer the configure-action
-overload shown above.
-
-## 🧭 API Coverage
-
-**136 of 138 operations** in the pinned snapshot are generated; the other two have hand-written
-WebSocket transports. No operation is declined, and
-[`src/OpenCode.Sdk/.generation-incomplete`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/src/OpenCode.Sdk/.generation-incomplete) is the
-machine-readable map that the build itself reads.
-
-**Two operations are transport-owned**: `pty.connect` and `persistentPty.connect` are
-WebSocket upgrades that the HTTP pipeline cannot carry. They are fully usable — through the
-hand-written `PtySession` and `PersistentPtySession` doors described in
-[the terminals guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/terminals.md) — they simply are not generated.
+`AddOpenCode(IConfiguration)` binds the same options from a configuration section. Configuration
+binding uses reflection, so that overload is annotated `[RequiresDynamicCode]` and
+`[RequiresUnreferencedCode]`. Under trimming or native AOT, use the configure-action overload.
 
 ## 📚 Documentation
 
@@ -342,82 +249,79 @@ hand-written `PtySession` and `PersistentPtySession` doors described in
 |---|---|
 | [**The guide**](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/README.md) | Index of every page below, in reading order |
 | [Getting started](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/getting-started.md) | Install, first call, and the shape of the client family |
-| [Connection modes](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/connection-modes.md) | The standalone launcher, an external server, and DI registration |
+| [Connection modes](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/connection-modes.md) | The standalone launcher, an external server, the background service, pairing, and DI registration |
 | [Streaming](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/streaming.md) | The global event bus and per-session server-sent event streams |
 | [Terminals](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/terminals.md) | PTY and persistent-PTY sessions over the WebSocket doors |
 | [Errors and responses](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/errors-and-responses.md) | Throwing versus `NoThrow`, and the typed error model |
 | [Pagination](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/pagination.md) | Cursor-carrying list envelopes, `Enumerate*Async`, and its `Pages` |
 | [Requests](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/requests.md) | Request records, the absent/null/set states of `Optional<T>`, query members, per-call location, and the permission, worktree, and shell-timeout members |
 
-Architecture, decision records, and engineering policy live under [`docs/`](https://github.com/Blind-Striker/opencode-sdk-dotnet/tree/master/docs) — start at
-[`AGENTS.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/AGENTS.md) if you want the internals rather than the API.
+Architecture, decision records, and engineering policy live under
+[`docs/`](https://github.com/Blind-Striker/opencode-sdk-dotnet/tree/master/docs). Start at
+[`AGENTS.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/AGENTS.md) for the
+internals.
+
+## 🚀 Platform Compatibility & Quality Status
+
+### Supported Platforms
+
+- [.NET 10](https://dotnet.microsoft.com/download/dotnet/10.0) | [.NET 9](https://dotnet.microsoft.com/download/dotnet/9.0) | [.NET 8](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET Standard 2.0](https://docs.microsoft.com/en-us/dotnet/standard/net-standard)
+- [.NET Framework 4.7.2 and Above](https://dotnet.microsoft.com/download/dotnet-framework)
+
+Both packages target `netstandard2.0;net472;net8.0;net9.0;net10.0`. The whole suite runs on
+`net472` on Windows, real-process launcher tests included, and on `net8.0`, `net9.0`, and `net10.0`
+on Windows, Linux, and macOS. A .NET Framework project needs a newer C# version than its default;
+the [getting-started guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/getting-started.md#net-framework-projects)
+has the two properties to set.
+
+### Build & Test Matrix
+
+| Category | Platform/Type | Status | Description |
+|----------|---------------|--------|-------------|
+| **🔧 Build** | Cross-Platform | [![CI](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml/badge.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml) | Matrix: Windows, Linux, macOS |
+| **🧪 Tests** | Linux | [![Linux Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Flinux%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/linux/blind-striker/opencode-sdk-dotnet/master) | `net8.0`, `net9.0`, `net10.0` |
+| **🧪 Tests** | Windows | [![Windows Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Fwindows%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/windows/blind-striker/opencode-sdk-dotnet/master) | `net472` plus every modern target |
+| **🧪 Tests** | macOS | [![macOS Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Fmacos%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/macos/blind-striker/opencode-sdk-dotnet/master) | `net8.0`, `net9.0`, `net10.0` |
+| **📡 Consumer leg** | Linux, Windows | [![Consumer leg](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/consumer-leg.yml/badge.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/consumer-leg.yml) | Weekly and on demand: the same suite against the published `@opencode/cli` build for the pin |
+
+### 📦 Package Status
+
+| Package | NuGet.org | GitHub Packages |
+|---------|-----------|-----------------|
+| **OpenCodeAI.Sdk** | [![NuGet](https://img.shields.io/nuget/vpre/OpenCodeAI.Sdk)](https://www.nuget.org/packages/OpenCodeAI.Sdk) | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCodeAI.Sdk) |
+| **OpenCodeAI.Sdk.Extensions** | [![NuGet](https://img.shields.io/nuget/vpre/OpenCodeAI.Sdk.Extensions)](https://www.nuget.org/packages/OpenCodeAI.Sdk.Extensions) | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCodeAI.Sdk.Extensions) |
 
 ## Known Issues
 
-- **The package id differs from the assembly name.** nuget.org reserves the `OpenCode.` id prefix
-  for an unrelated owner, so the packages publish as `OpenCodeAI.Sdk` and
-  `OpenCodeAI.Sdk.Extensions` while the assemblies and every public namespace stay `OpenCode.Sdk`.
-  Nothing about your code changes: only the `PackageReference` carries the `OpenCodeAI` name.
-
-- **Response bodies larger than 1 MB allocate an extra copy on `net472` and `netstandard2.0`.**
-  The downlevel array pool caps its buckets at 1 MB, so a rent above that cap falls through to a
-  fresh allocation and the body is copied once at wire size. Modern targets are unaffected — their
-  pool has no such cap. This only shows up on genuinely large payloads (a long session export, for
-  example); a larger-capacity pool is a measured, benchmark-gated follow-up rather than a
-  speculative change.
-
-- **Each terminal connection allocates a 16 KiB receive buffer.** The connection-owned receiver
-  reuses it across messages and consumer read enumerations. Pooling remains a benchmark-gated
-  follow-up; repeated reads on the same connection do not allocate another receive buffer. The
-  receiver also queues undelivered frames, so slow or absent consumers can grow memory; see the
-  [terminal lifetime contract](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/architecture/client-runtime.md).
-
-- **On `net472` and `netstandard2.0` running on Unix, owner-only files get their mode through a
-  `chmod` child process.** Discovery reproduces the CLI's one-time copy of an older hashed
-  registration filename, and Ensure publishes the persistent-terminal handoff sidecar, both with
-  mode `0600`. Modern targets set the mode at creation through the runtime; the downlevel targets
-  have no such API and use the Polyfill package's `File.SetUnixFileMode`, which shells out to
-  `chmod` without quoting the path or checking its exit code. Both files are created exclusively
-  either way; the registration copy is a convenience the daemon's own registration supersedes and
-  the sidecar's ticket carries its own expiry, so the practical exposure is such a file left at the
-  default mode on an exotic path — on a runtime combination (.NET Framework or Mono on Unix) this SDK
-  does not test.
-
-- **The event bus has no replay contract.** `EventsClient.SubscribeAsync` is a live, volatile
-  stream: events published while you are disconnected are gone, and a consumer slower than the
-  producer can overflow and fail the stream. This is the server's contract, not an SDK limitation —
-  if you need durable history for one session, use the per-session log stream instead, on a server
-  started with event persistence (next item)
-  ([streaming guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/streaming.md)).
-
-- **A CLI-started server's session log is the marker alone, replayed or followed.** The per-session
-  log reads its events back from the server's event store, both for a replay and for the live part
-  of `Follow = True`, and the distributed `opencode` CLI starts its server without event persistence
-  and exposes no switch to turn it on — no serve flag, no environment variable, no configuration key
-  (confirmed at the pin; observed on `@opencode/cli@2.0.15`). `SessionClient.GetLogAsync` against
-  such a server does not fail: with or without `Follow` it delivers a single `EventLogSynced` marker
-  and no durable events, and a follow then stays silent through every later change. For live
-  session activity, subscribe to the global event bus (`client.Events.SubscribeAsync`) and filter
-  by session id; it has no replay, delivers the instance-wide event union rather than the session's
-  log items, and leaves recovery after a disconnect to you. Persisted replay and follow need a host
-  that embeds the opencode server library with persistence enabled — this repository's own
-  simulation host does that for its tests. See the
+- **The event bus has no replay.** `EventsClient.SubscribeAsync` is a live stream: events published
+  while you are disconnected are lost, and a consumer slower than the producer can overflow and
+  fail the stream. This is the server's contract, not an SDK limitation. See the
   [streaming guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/streaming.md).
 
-- **Running the in-repo sandbox against a different server needs `--no-launch-profile`.** The
-  checked-in `launchSettings.json` prefills `OPENCODE_SANDBOX_ENDPOINT` at port 4096, and
-  `dotnet run` applies the default profile unless told otherwise — so without the flag the sandbox
-  silently addresses 4096 whatever your environment says. The prefill stays deliberately: it is
-  what makes zero-argument F5 work against a local server. See
-  [`tests/OpenCode.Sdk.Sandbox/README.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/tests/OpenCode.Sdk.Sandbox/README.md).
+- **A CLI-started server's session log holds only the sync marker.** The per-session log reads from
+  the server's event store, and the distributed `opencode` CLI starts its server without event
+  persistence. No flag, environment variable, or configuration key turns it on (confirmed at the
+  pin; observed on `@opencode/cli@2.0.15`). `SessionClient.GetLogAsync` does not fail: with or
+  without `Follow`, it delivers one `EventLogSynced` marker and no durable events. For live session
+  activity, subscribe to the global event bus and filter by session id. Persisted replay needs a
+  host that embeds the opencode server library with persistence enabled.
+
+- **On `net472` and `netstandard2.0`, two costs are larger than on modern targets.** A response body
+  over 1 MB is copied once at wire size, because the downlevel array pool caps its buckets at 1 MB.
+  On Unix (Mono), owner-only files that discovery and `EnsureAsync` write get mode `0600` through a
+  `chmod` child process, which does not quote the path or check the exit code. No CI leg runs .NET
+  Framework or Mono on Unix.
+
+- **Each terminal connection allocates a 16 KiB receive buffer**, reused across reads. The receiver
+  also queues frames that nobody reads, so a slow or absent consumer can grow memory. See the
+  [terminal lifetime contract](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/architecture/client-runtime.md).
 
 ## Developing
 
 We appreciate contributions in the form of feedback, bug reports, and pull requests. Read
-[CONTRIBUTING.md](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/.github/CONTRIBUTING.md) first — it carries the full gate and the commit
-convention.
-
-### Building the Project
+[CONTRIBUTING.md](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/.github/CONTRIBUTING.md)
+first — it has the full gate and the commit convention.
 
 ```bash
 git clone --recurse-submodules https://github.com/Blind-Striker/opencode-sdk-dotnet.git
@@ -425,37 +329,13 @@ cd opencode-sdk-dotnet
 dotnet build --configuration Release
 ```
 
-`external/` holds read-only upstream submodules used as protocol evidence and as the pinned-server
-test fixture; `--recurse-submodules` is what makes the fixture-backed tests runnable.
+`external/` holds read-only upstream submodules: protocol evidence, and the pinned server that the
+fixture-backed tests run. Those tests also need Bun, the pinned server's dependencies, and
+ripgrep; [`docs/engineering/quality-gates.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/engineering/quality-gates.md)
+has the versions and the full completion gate.
 
-Fixture-backed tests also require the Bun version named by `external/opencode/package.json`, the
-pinned server dependencies (`bun install --frozen-lockfile --ignore-scripts` from
-`external/opencode`), and ripgrep 15.1.0 on `PATH`. The simulated server deliberately denies
-unregistered network access, so its `fs.find` test cannot use upstream's fallback download. CI
-provisions the matching official ripgrep archive and verifies its SHA-256 digest before use.
-
-### Sandbox Application
-
-[`tests/OpenCode.Sdk.Sandbox`](https://github.com/Blind-Striker/opencode-sdk-dotnet/tree/master/tests/OpenCode.Sdk.Sandbox) is a committed playground that drives
-the SDK against a real `opencode serve` under a debugger — the standing breadth walkthrough, the
-SSE stream modes, the PTY legs, and the standalone-launcher demo. Its
-[README](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/tests/OpenCode.Sdk.Sandbox/README.md) documents every mode.
-
-```bash
-dotnet run --project tests/OpenCode.Sdk.Sandbox -- --standalone
-```
-
-### Running Tests
-
-```bash
-dotnet test --configuration Release --no-build -- --treenode-filter "/*/*/*/*[Category!=ServiceElection]"
-dotnet test tests/OpenCode.Sdk.Tests --configuration Release --no-build --max-parallel-test-modules 1 -- --treenode-filter "/*/*/*/*[Category=ServiceElection]"
-```
-
-The background-service election tests run in their own pass, one test host at a time, because
-their elections load the machine past the time limits of tests in other hosts. The full completion
-gate — analyzers, formatting, and the suite — is
-[`docs/engineering/quality-gates.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/engineering/quality-gates.md).
+[`tests/OpenCode.Sdk.Sandbox`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/tests/OpenCode.Sdk.Sandbox/README.md)
+is a committed playground that drives the SDK against a real `opencode serve` under a debugger.
 
 ## Community
 
