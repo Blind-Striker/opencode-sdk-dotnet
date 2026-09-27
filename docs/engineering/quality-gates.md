@@ -35,6 +35,10 @@ their coverage differs or supplies defense in depth. When a rule misfires on val
 narrowly scoped per-rule arbitration comment that names the winning rule or contract; never roll
 back the policy globally. `.editorconfig` contains the established pattern.
 
+- A rule that cannot fire here but still costs build time is switched off compilation-wide in the
+  repository-root `.globalconfig`, with the same winner-naming reason and a removal trigger. A
+  file-scoped `.editorconfig` severity hides the diagnostic, but the analyzer still runs: Roslyn
+  skips an analyzer only when all its diagnostics are off for the whole compilation.
 - `LangVersion=14.0` and `AnalysisLevel=10.0` are deliberate numeric pins. Never replace either
   with `latest`.
 - C# 14 on net472 is unsupported by the platform documentation but deliberate repository practice,
