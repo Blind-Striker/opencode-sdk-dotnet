@@ -65,6 +65,7 @@ await using var server = await OpenCodeServer.StartAsync(new OpenCodeServerOptio
 | `Environment` | `null` | Extra environment entries for the child. |
 | `ReadinessTimeout` | 60 s | How long to wait for the readiness line before failing and ending the child. |
 | `GracefulShutdownTimeout` | 3 s | The grace between releasing the ownership lease and the forced kill. |
+| `Output` | `null` | An `OpenCodeServerOutput` collector that keeps a bounded tail of the child's stdout and stderr; read its snapshot whenever you like, even after a failed start. |
 
 > **🔒 Your `Environment` entries can never shadow the credential.** The launcher writes its own
 > generated `OPENCODE_PASSWORD` entry *after* yours, so a stray value in your dictionary cannot
@@ -199,6 +200,34 @@ in the snippet above is your application's choice; a configuration section or a 
 exactly as well. The one door that does read the environment is
 [background-service discovery](#️-discovering-the-background-service), and it reads exactly the four
 variables that section names — never a credential.
+
+### 🤝 Pairing another client
+
+A client that holds the server password can let another client in without handing the password
+over. `CreatePairingCodeAsync` issues a short-lived, single-use code; the other side redeems it
+with no credential at all and gets a session token the server accepts anywhere the password is.
+
+```csharp
+// On the side that holds the password:
+var issued = await client.Server.CreatePairingCodeAsync();
+Console.WriteLine($"code valid for {issued.PairingCode.ExpiresIn} s"); // send issued.PairingCode.Code over your own channel
+
+// On the other side, which holds nothing yet:
+using var anonymous = new OpenCodeClient(new OpenCodeClientOptions { Endpoint = endpoint });
+var session = await anonymous.Server.RedeemPairingCodeAsync(code);
+
+using var paired = new OpenCodeClient(new OpenCodeClientOptions
+{
+    Endpoint = endpoint,
+    Password = session.PairingSession.Token,
+});
+```
+
+- **The code works once.** Redeeming it again, or after it expires, answers 401 with the typed
+  `UnauthorizedError`.
+- **The token is a credential.** The server signs it with a key derived from its password, so it
+  lasts 30 days and ends when the password changes. Treat it like the password.
+  `PairingSession.ToString()` and `PairingCode.ToString()` mask both values.
 
 ## 🛰️ Discovering the background service
 

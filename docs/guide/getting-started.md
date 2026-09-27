@@ -29,8 +29,8 @@ requirement live in one place so they never drift:
 [**Installation** in the root README](../../README.md#-installation).
 
 You also need an `opencode` server. Either install the CLI and run one yourself, or let the SDK
-start a private one for you — [connection modes](connection-modes.md) covers both, and the
-[prerequisites](../../README.md#prerequisites) section has the CLI install line.
+start a private one for you — [connection modes](connection-modes.md) covers both, and
+[**Installation** in the root README](../../README.md#-installation) has the CLI install line.
 
 ### .NET Framework projects
 
