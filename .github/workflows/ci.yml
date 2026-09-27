@@ -140,9 +140,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
+      # Dynamic PGO is off for the build only. The compiler server and the MSBuild nodes live
+      # for one cold build here, and turning it off shortened the Build step on every leg
+      # (2026-09-26, run 36269677228, commit db330cc: four cold builds per VM in rotated order,
+      # mean paired against the same VM's default build: Linux -48 s (-16%), Windows -77 s
+      # (-17%), macOS -62 s (-16%)). A JIT setting does not change the compiler's output; a
+      # dev-01 build with it produced the identical assembly hash. The tests run on the default
+      # runtime settings.
       - name: Build
         id: build
         run: dotnet build --configuration Release
+        env:
+          DOTNET_TieredPGO: 0
 
       # The build restored every package the later steps use. Only master runs write the cache;
       # the setup-pinned-server action explains why.

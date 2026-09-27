@@ -12,6 +12,13 @@ namespace OpenCode.Sdk.Tests;
 /// registered retains the declared <see cref="RpcError"/> unavailable proof on both error channels.
 /// External mode exercises the unavailable arm, then checks inventory after the RPC activation barrier.
 /// </summary>
+/// <remarks>
+/// No <see cref="LiveReadiness.PluginAsync"/> wait precedes the owned calls, unlike the families
+/// that read <c>plugin.list</c>: the pinned <c>rpc.call</c> handler awaits plugin activation
+/// server-side (<c>packages/server/src/handlers/rpc.ts:11</c> at the pin) before it looks the rpc
+/// id up, so a cold location's first call cannot observe the registry before the seeded plugin
+/// registers. <c>plugin.list</c> does not wait, which is why those readers poll.
+/// </remarks>
 [ClassDataSource<PinnedOpenCodeServerFixture>(Shared = SharedType.PerTestSession)]
 [NotInParallel(ParallelConstraintKeys.ServerProcess)]
 public sealed class RpcClientLiveTests(PinnedOpenCodeServerFixture server)

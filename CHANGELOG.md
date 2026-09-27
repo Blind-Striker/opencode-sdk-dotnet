@@ -333,7 +333,8 @@ keeps no compatibility layer, so the breaking changes come first, each with what
   (`VcsBranchListRequest` / `VcsBranchListResponse`). `FormsClient.ListRequestsAsync` →
   `ListFormsAsync`, and its payload `Requests` → `Forms`. `ProjectsClient.GetCurrentAsync` is
   removed; the current project arrives on `client.Location.GetLocationAsync()`.
-  `ShellClient.TimeoutShellAsync` is removed. `SkillInfo.Location` and `Slash` → `Path`. An unknown
+  `ShellClient.TimeoutShellAsync` is removed. `ShellCreateRequest.Timeout` is optional
+  (`long` → `long?`). `SkillInfo.Location` and `Slash` → `Path`. An unknown
   integration now throws the declared 404 instead of returning null.
 - **`PluginsClient.AwaitPluginActivationAsync` is removed and has no replacement**: the pin exposes
   no HTTP activation barrier. When your code needs a particular plugin, provider, or model, wait

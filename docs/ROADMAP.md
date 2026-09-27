@@ -105,8 +105,10 @@ is revisited at each boundary.
    octet-stream request body, which the binder's JSON-and-event-stream media-type vocabulary
    cannot bind — decided alongside it; and the two transport-owned WebSocket doors counted as
    the covered operations they are — so the surface reads 136 of 136 usable.
-   **What remains of M4, in order:** surface completeness (#87), bounded live-test parallelism
-   ([#83](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/83)), then the close.
+   **What remains of M4, in order:** surface completeness (#87); response envelopes that stop
+   printing the server's raw error body in `ToString`
+   ([#100](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/100)); the refresh to the
+   newest upstream release tag; then the close.
 5. **M5 — Full surface.** Target admission over the refreshed surface, driven by the `refresh-spec`
    synchronizer (ADR-0020) and the ownership pattern for the terminal families (ADR-0021). Coverage
    has reached its end state; what remains is exclusion fingerprints for the transport-owned
@@ -115,9 +117,7 @@ is revisited at each boundary.
    `tools/generation-profile.txt` as the one hand-authored admission list, and makes per-operation
    assurance mechanically complete: a contract test for every status arm the pinned document
    declares, verifier-checked, with the arms no deterministic fixture can reach listed by name
-   rather than skipped silently (ADR-0022). It opens with response envelopes that stop printing the
-   server's raw error body in `ToString`
-   ([#100](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/100)).
+   rather than skipped silently (ADR-0022).
 6. **M6 — Operational closure.** Automation for the upstream observation lanes (tip detector,
    candidate refresh), retry/telemetry/hooks with the public network-timeout knob and the
    per-operation event-stream idle bound it gates, a quarantine lane, the nightly source-run
@@ -225,17 +225,18 @@ is revisited at each boundary.
   place this one layer above their core client, which does not reconnect either
   (`packages/client/src/solid/connection.ts`: two-second connect, forty-five-second idle abort,
   one-second reconnect delay, and an authoritative refetch once reconnected).
-- **A server-process start stalls in-process `net472` tests for about ten seconds** on hosted
-  Windows. Harmless today, because every timing-bounded test runs alone, and queued as a hygiene
-  candidate: the first suspect is .NET Framework's synchronous pipe reads holding thread-pool
-  threads for every piped child. Measure before changing anything.
+- **The launcher's piped reads hold thread-pool threads on Windows** before .NET 11: two per
+  standalone server, for its life (`architecture/client-runtime.md`, Launcher). The ten-second
+  `net472` test stalls once suspected here had two other causes, both fixed in
+  [#111](https://github.com/Blind-Striker/opencode-sdk-dotnet/pull/111). A launcher that owns its
+  pipes, as the contender spawn does, is reconsidered only if a thread-pool sample ties a CI stall
+  to launcher reads.
 - **Live tests are serialized by one mutex within a host** ([#83](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/83)):
   every live class that shares a server carries the `ServerProcess` key, and the classes whose
   assertions ride a wall-clock bound run keyless `[NotInParallel]`, so a host's live tests run one
-  at a time.
-  Bounded parallelism (`ParallelLimiter`) needs the simulated drive controller demultiplexed by
-  session first; until then the remaining gain is about 8% per host and not worth the Windows
-  watcher-churn risk. Queued inside M4.
+  at a time. The part of that serial tail a key could shorten measured under 30 s of a Windows
+  run, whose critical path is the build, so it is not queued. Bounded parallelism
+  (`ParallelLimiter`) would also need the simulated drive controller demultiplexed by session.
 - **Small cleanups queued for their next natural touch** — `envelopePayloadNames` is the one
   curation section whose rows cannot carry a reason (a mechanical loader change, though authoring
   fifteen verified reasons is not); the generator still inlines the dot-segment refusal into every
