@@ -117,7 +117,7 @@ jobs:
         include:
           - os: windows-2025
             name: Windows
-            test-modules: 2
+            test-modules: 4
 
           - os: ubuntu-24.04
             name: Linux
@@ -198,9 +198,7 @@ jobs:
 
       # The number of test modules at once is the matrix's test-modules value, measured per runner
       # rather than left to MTP's processor-count default (docs/engineering/quality-gates.md):
-      # Windows 2, because its process-tree startup tests stall more often with more hosts; Linux
-      # 4; macOS 3, which keeps its loopback handoff tests' margin during a Roslyn compilation
-      # burst.
+      # Windows 4, Linux 4, macOS 3 (four saves only about 3% there).
       #
       # The background-service elections run in a pass of their own after every other test. A
       # ten-caller election starts some twenty to thirty-four source-run servers, and a timed test
