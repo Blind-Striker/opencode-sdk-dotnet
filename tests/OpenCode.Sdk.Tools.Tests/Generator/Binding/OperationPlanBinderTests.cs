@@ -242,7 +242,7 @@ public sealed class OperationPlanBinderTests
     }
 
     /// <summary>
-    /// The committed curation's declined rows against the pinned spec: the four operations a
+    /// The committed curation's declined rows against the pinned spec: the two operations a
     /// standing wall refuses and the maintainer decided to leave out of the released surface. With
     /// them out of the pending set the pinned profile reaches pending = 0, which is what opens the
     /// packing wall — so a row added, dropped, or reordered must fail here rather than drift.
@@ -256,7 +256,7 @@ public sealed class OperationPlanBinderTests
             .That(plan
                 .DeclinedOperations.Select(static operation => operation.OperationId)
                 .SequenceEqual(
-                    ["config.get", "experimental.fs.write", "experimental.migration.v1.status", "fs.read"],
+                    ["experimental.fs.write", "fs.read"],
                     StringComparer.Ordinal))
             .IsTrue();
         await Assert.That(plan.DeclinedOperations.All(static operation => operation.Reason.Length > 0)).IsTrue();

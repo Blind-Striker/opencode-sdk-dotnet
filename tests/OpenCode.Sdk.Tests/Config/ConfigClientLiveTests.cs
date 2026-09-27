@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using OpenCode.Sdk.Models;
+using OpenCode.Sdk.Tests.Support;
 using OpenCode.Sdk.TestSupport;
 using OpenCode.Sdk.TestSupport.Ownership;
 
@@ -10,6 +11,10 @@ namespace OpenCode.Sdk.Tests;
 [NotInParallel(ParallelConstraintKeys.ServerProcess)]
 public sealed class ConfigClientLiveTests(SimulatedDriveServerFixture server)
 {
+    private static readonly TimeSpan CleanupTimeout = TimeSpan.FromSeconds(15);
+
+    private static readonly TimeSpan EventWait = TimeSpan.FromSeconds(120);
+
     [Test]
     [Timeout(60_000)]
     public async Task GetShellsAsync_Should_Report_Acceptable_Host_Shells(CancellationToken cancellationToken)
@@ -79,6 +84,88 @@ public sealed class ConfigClientLiveTests(SimulatedDriveServerFixture server)
         }
 
         await cleanup.CompleteAsync(failure);
+    }
+
+    /// <summary>
+    /// <c>config.get</c> answers the location's loaded configuration, and <c>experimental.config.update</c>
+    /// writes the global file and only requests a reload (debounced, asynchronous) that publishes
+    /// <c>config.updated</c> once the loaded entries change. So the read-back waits for that event,
+    /// never for a clock, and reads again after each one until the write shows.
+    /// </summary>
+    [Test]
+    [Timeout(180_000)]
+    public async Task GetConfigAsync_Should_Read_Back_The_Shell_UpdateConfig_Wrote(CancellationToken cancellationToken)
+    {
+        using var client = server.CreateClient();
+        var shells = await client.Config.GetShellsAsync(cancellationToken: cancellationToken);
+        var shell = shells.Shells.First(static candidate => candidate.Acceptable).Path;
+        var reader = new OwnedEventReader(EventWait, CleanupTimeout, cancellationToken);
+        var probe = new SessionEventProbe(reader);
+        var cleanup = new OwnedCleanup(TimeSpan.FromSeconds(10));
+        var cleared = false;
+        Exception? failure = null;
+        cleanup.Own("clear isolated shell config", async token =>
+        {
+            if (!cleared)
+            {
+                _ = await client.Experimental.UpdateConfigAsync(
+                    new ExperimentalConfigUpdateRequest { Shell = null, }, cancellationToken: token);
+            }
+        });
+        try
+        {
+            probe.Start(client.Events.SubscribeAsync(reader.Token));
+            await probe.WaitForConnectedAsync(cancellationToken);
+
+            var set = await client.Experimental.UpdateConfigAsync(
+                new ExperimentalConfigUpdateRequest { Shell = shell, }, cancellationToken: cancellationToken);
+            await Assert.That(set.Status).IsEqualTo(204);
+            var reloaded = await WaitForShellsAsync(client, probe, after: null, shells => shells.Contains(shell, StringComparer.Ordinal), "the written shell", cancellationToken);
+
+            var clear = await client.Experimental.UpdateConfigAsync(
+                new ExperimentalConfigUpdateRequest { Shell = null, }, cancellationToken: cancellationToken);
+            await Assert.That(clear.Status).IsEqualTo(204);
+            _ = await WaitForShellsAsync(client, probe, reloaded, shells => !shells.Contains(shell, StringComparer.Ordinal), "the cleared shell", cancellationToken);
+            cleared = true;
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+            if (!exception.Data.Contains(EventDiagnosticSummary.DataKey))
+            {
+                exception.Data[EventDiagnosticSummary.DataKey] = probe.DiagnosticSummary;
+            }
+        }
+        finally
+        {
+            await reader.CompleteAsync(failure);
+        }
+
+        await cleanup.CompleteAsync(failure);
+    }
+
+    /// <summary>
+    /// Waits for each <c>config.updated</c> after <paramref name="after"/> and reads the shells
+    /// the location's configuration documents declare, until <paramref name="expected"/> holds;
+    /// returns the event that preceded the matching read, the anchor for the next wait.
+    /// </summary>
+    private static async Task<ConfigUpdated> WaitForShellsAsync(OpenCodeClient client, SessionEventProbe probe, IEvent? after,
+        Func<IReadOnlyList<string>, bool> expected, string description, CancellationToken cancellationToken)
+    {
+        using var barrier = SessionEventProbe.Barrier(cancellationToken);
+        while (true)
+        {
+            var updated = await probe.WaitForAsync<ConfigUpdated>(static _ => true, "config.updated for " + description, after, barrier.Token);
+            var response = await client.Config.GetConfigAsync(cancellationToken: cancellationToken);
+            await Assert.That(response.Status).IsEqualTo(200);
+            IReadOnlyList<string> shells = [.. response.Config.OfType<ConfigDocument>().Select(static document => document.Info.Shell).OfType<string>()];
+            if (expected(shells))
+            {
+                return updated;
+            }
+
+            after = updated;
+        }
     }
 
     private static string Number(int value) => value.ToString(CultureInfo.InvariantCulture);

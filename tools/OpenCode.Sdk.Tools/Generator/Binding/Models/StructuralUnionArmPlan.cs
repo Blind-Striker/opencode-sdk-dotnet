@@ -17,4 +17,10 @@ internal sealed record StructuralUnionArmPlan
             field = Array.AsReadOnly([.. value]);
         }
     } = Array.AsReadOnly(Array.Empty<JsonTokenType>());
+
+    /// <summary>
+    /// Gets the first-match claim of an object arm that shares <see cref="JsonTokenType.StartObject"/>
+    /// with another object arm; null for every arm its token kind alone selects.
+    /// </summary>
+    public StructuralObjectClaimPlan? Claim { get; init; }
 }

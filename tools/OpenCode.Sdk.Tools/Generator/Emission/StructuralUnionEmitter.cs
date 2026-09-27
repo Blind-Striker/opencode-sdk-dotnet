@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using OpenCode.Sdk.Tools.Generator.Binding;
 using OpenCode.Sdk.Tools.Generator.Binding.Models;
+using OpenCode.Sdk.Tools.Generator.Ingestion.Models;
 
 namespace OpenCode.Sdk.Tools.Generator.Emission;
 
@@ -297,14 +298,7 @@ internal static class StructuralUnionEmitter
                 SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.Generic(
                     "JsonConverter",
                     TypeSyntaxEmitter.EmitNamed(union.Name))))))
-            .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>(
-            [
-                EmitRead(union),
-                EmitWrite(union),
-                EmitReadKnown(),
-                EmitWriteKnown(),
-                EmitReadUnknown(union),
-            ]));
+            .WithMembers(SyntaxFactory.List(ConverterMembers(union)));
         var unit = EmissionSyntax.CompilationUnit(
             "OpenCode.Sdk.Internal.Serialization",
             [
@@ -317,15 +311,32 @@ internal static class StructuralUnionEmitter
         return EmissionSyntax.CreateSource($"Internal/Serialization/{union.Name}JsonConverter.cs", unit);
     }
 
+    private static IEnumerable<MemberDeclarationSyntax> ConverterMembers(StructuralUnionModelPlan union)
+    {
+        var firstMatch = union.Arms.Any(static arm => arm.Claim is not null);
+        yield return EmitRead(union);
+        yield return EmitWrite(union);
+        if (firstMatch)
+        {
+            yield return EmitReadObject(union);
+        }
+
+        yield return EmitReadKnown(fromElement: false);
+        if (firstMatch)
+        {
+            yield return EmitReadKnown(fromElement: true);
+        }
+
+        yield return EmitWriteKnown();
+        yield return EmitReadUnknown(union);
+    }
+
     private static MethodDeclarationSyntax EmitRead(StructuralUnionModelPlan union)
     {
         var claimedTokens = union.Arms.SelectMany(static arm => arm.Tokens).ToHashSet();
+        var firstClaimed = union.Arms.FirstOrDefault(static arm => arm.Claim is not null);
         var arms = union
-            .Arms.SelectMany(arm => arm.Tokens.Select(token => SyntaxFactory.SwitchExpressionArm(
-                SyntaxFactory.ConstantPattern(EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("JsonTokenType"), token.ToString())),
-                EmissionSyntax.Invocation(
-                    EmissionSyntax.MemberAccess(TypeSyntaxEmitter.EmitNamed(union.Name), $"From{arm.Name}"),
-                    SyntaxFactory.Argument(EmitReadValue(arm.Type))))))
+            .Arms.SelectMany(arm => ArmTokenArms(union, arm, firstClaimed))
             .Concat(Enum
                 .GetValues<JsonTokenType>()
                 .Where(token => !claimedTokens.Contains(token))
@@ -460,17 +471,89 @@ internal static class StructuralUnionEmitter
         };
     }
 
-    private static MethodDeclarationSyntax EmitReadKnown()
+    /// <summary>
+    /// An arm its token alone selects reads its value directly; the object arms that share the
+    /// object token route it once, from the first of them, to the first-match read.
+    /// </summary>
+    private static IEnumerable<SwitchExpressionArmSyntax> ArmTokenArms(StructuralUnionModelPlan union, StructuralUnionArmPlan arm,
+        StructuralUnionArmPlan? firstClaimed)
     {
-        var getTypeInfo = GetTypeInfo();
-        var deserialize = EmissionSyntax.Invocation(
-            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("JsonSerializer"), "Deserialize"),
-            SyntaxFactory.Argument(SyntaxFactory.IdentifierName("reader")).WithRefKindKeyword(SyntaxFactory.Token(SyntaxKind.RefKeyword)),
-            SyntaxFactory.Argument(SyntaxFactory.IdentifierName("typeInfo")));
+        if (arm.Claim is null)
+        {
+            return arm.Tokens.Select(token => TokenArm(token, EmissionSyntax.Invocation(
+                EmissionSyntax.MemberAccess(TypeSyntaxEmitter.EmitNamed(union.Name), $"From{arm.Name}"),
+                SyntaxFactory.Argument(EmitReadValue(arm.Type)))));
+        }
+
+        return ReferenceEquals(arm, firstClaimed)
+            ? [TokenArm(JsonTokenType.StartObject, EmissionSyntax.Invocation(SyntaxFactory.IdentifierName("ReadObject"), ReaderArgument()))]
+            : [];
+    }
+
+    private static SwitchExpressionArmSyntax TokenArm(JsonTokenType token, ExpressionSyntax value) =>
+        SyntaxFactory.SwitchExpressionArm(
+            SyntaxFactory.ConstantPattern(EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("JsonTokenType"), token.ToString())),
+            value);
+
+    private static ArgumentSyntax ReaderArgument() => SyntaxFactory
+        .Argument(SyntaxFactory.IdentifierName("reader"))
+        .WithRefKindKeyword(SyntaxFactory.Token(SyntaxKind.RefKeyword));
+
+    /// <summary>
+    /// Emits the first-match read of the object arms that share the object token: the value is
+    /// buffered once, each arm's claim is tried in declaration order, the first that holds
+    /// deep-parses the value as that arm, and a value no claim holds stays raw as <c>Unknown</c>.
+    /// </summary>
+    private static MethodDeclarationSyntax EmitReadObject(StructuralUnionModelPlan union)
+    {
+        var parse = EmissionSyntax.Invocation(
+            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("JsonDocument"), "ParseValue"),
+            ReaderArgument());
+        var body = new List<StatementSyntax>
+        {
+            SyntaxFactory
+                .LocalDeclarationStatement(SyntaxFactory
+                    .VariableDeclaration(SyntaxFactory.IdentifierName("var"))
+                    .WithVariables(SyntaxFactory.SingletonSeparatedList(
+                        SyntaxFactory.VariableDeclarator("document").WithInitializer(SyntaxFactory.EqualsValueClause(parse)))))
+                .WithUsingKeyword(SyntaxFactory.Token(SyntaxKind.UsingKeyword)),
+            Local("root", EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("document"), "RootElement")),
+        };
+        var unconditional = false;
+        foreach (var arm in union.Arms.Where(static arm => arm.Claim is not null))
+        {
+            var select = SyntaxFactory.ReturnStatement(EmissionSyntax.Invocation(
+                EmissionSyntax.MemberAccess(TypeSyntaxEmitter.EmitNamed(union.Name), $"From{arm.Name}"),
+                SyntaxFactory.Argument(EmissionSyntax.Invocation(
+                    SyntaxFactory
+                        .GenericName("ReadKnown")
+                        .WithTypeArgumentList(SyntaxFactory.TypeArgumentList(
+                            SyntaxFactory.SingletonSeparatedList(TypeSyntaxEmitter.Emit(arm.Type)))),
+                    SyntaxFactory.Argument(SyntaxFactory.IdentifierName("root"))))));
+            var conditions = ClaimConditions(arm.Claim!).ToArray();
+            if (conditions.Length is 0)
+            {
+                // A claim with nothing to check takes every object; the binder refuses any arm
+                // after it, so it is the last one tried.
+                body.Add(select);
+                unconditional = true;
+                break;
+            }
+
+            var condition = conditions.Aggregate(static (left, right) =>
+                SyntaxFactory.BinaryExpression(SyntaxKind.LogicalAndExpression, left, right));
+            body.Add(SyntaxFactory.IfStatement(condition, SyntaxFactory.Block(select)));
+        }
+
+        if (!unconditional)
+        {
+            body.Add(SyntaxFactory.ReturnStatement(EmissionSyntax.Invocation(
+                EmissionSyntax.MemberAccess(TypeSyntaxEmitter.EmitNamed(union.Name), "FromUnknown"),
+                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("root")))));
+        }
+
         return SyntaxFactory
-            .MethodDeclaration(SyntaxFactory.IdentifierName("T"), "ReadKnown")
-            .WithTypeParameterList(SyntaxFactory.TypeParameterList(SyntaxFactory.SingletonSeparatedList(SyntaxFactory.TypeParameter("T"))))
-            .WithConstraintClauses(SyntaxFactory.SingletonList(NotNullConstraint()))
+            .MethodDeclaration(TypeSyntaxEmitter.EmitNamed(union.Name), "ReadObject")
             .WithModifiers(SyntaxFactory.TokenList(
                 SyntaxFactory.Token(SyntaxKind.PrivateKeyword),
                 SyntaxFactory.Token(SyntaxKind.StaticKeyword)))
@@ -479,6 +562,69 @@ internal static class StructuralUnionEmitter
                     .Parameter(SyntaxFactory.Identifier("reader"))
                     .WithType(SyntaxFactory.IdentifierName("Utf8JsonReader"))
                     .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.RefKeyword))))))
+            .WithBody(SyntaxFactory.Block(body));
+    }
+
+    /// <summary>
+    /// A required key with a sentinel must hold one of its values, a required key without one must
+    /// be present, and an optional sentinel must hold one of its values when it is present.
+    /// </summary>
+    private static IEnumerable<ExpressionSyntax> ClaimConditions(StructuralObjectClaimPlan claim)
+    {
+        foreach (var requiredKey in claim.RequiredKeys)
+        {
+            var sentinel = claim.Sentinels.FirstOrDefault(candidate => StringComparer.Ordinal.Equals(candidate.Property, requiredKey));
+            if (sentinel is null)
+            {
+                yield return ClaimCall("Has", requiredKey, []);
+                continue;
+            }
+
+            yield return ClaimCall(sentinel.Kind is LiteralKind.Boolean ? "IsBoolean" : "IsText", requiredKey, SentinelValues(sentinel));
+        }
+
+        foreach (var sentinel in claim.Sentinels.Where(candidate => !claim.RequiredKeys.Contains(candidate.Property, StringComparer.Ordinal)))
+        {
+            yield return ClaimCall(sentinel.Kind is LiteralKind.Boolean ? "AllowsBoolean" : "AllowsText", sentinel.Property, SentinelValues(sentinel));
+        }
+    }
+
+    private static InvocationExpressionSyntax ClaimCall(string method, string property, IEnumerable<ExpressionSyntax> values) =>
+        EmissionSyntax.Invocation(
+            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("StructuralUnionClaim"), method),
+            [
+                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("root")),
+                SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression, SyntaxFactory.Literal(property))),
+                .. values.Select(SyntaxFactory.Argument),
+            ]);
+
+    private static IEnumerable<ExpressionSyntax> SentinelValues(StructuralSentinelPlan sentinel) => sentinel.Kind is LiteralKind.Boolean
+        ? sentinel.Values.Select(static value => (ExpressionSyntax)SyntaxFactory.LiteralExpression(
+            StringComparer.Ordinal.Equals(value, "true") ? SyntaxKind.TrueLiteralExpression : SyntaxKind.FalseLiteralExpression))
+        : sentinel.Values.Select(static value => (ExpressionSyntax)SyntaxFactory.LiteralExpression(
+            SyntaxKind.StringLiteralExpression, SyntaxFactory.Literal(value)));
+
+    private static MethodDeclarationSyntax EmitReadKnown(bool fromElement)
+    {
+        var getTypeInfo = GetTypeInfo();
+        var deserialize = EmissionSyntax.Invocation(
+            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("JsonSerializer"), "Deserialize"),
+            fromElement ? SyntaxFactory.Argument(SyntaxFactory.IdentifierName("element")) : ReaderArgument(),
+            SyntaxFactory.Argument(SyntaxFactory.IdentifierName("typeInfo")));
+        var parameter = fromElement
+            ? SyntaxFactory.Parameter(SyntaxFactory.Identifier("element")).WithType(SyntaxFactory.IdentifierName("JsonElement"))
+            : SyntaxFactory
+                .Parameter(SyntaxFactory.Identifier("reader"))
+                .WithType(SyntaxFactory.IdentifierName("Utf8JsonReader"))
+                .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.RefKeyword)));
+        return SyntaxFactory
+            .MethodDeclaration(SyntaxFactory.IdentifierName("T"), "ReadKnown")
+            .WithTypeParameterList(SyntaxFactory.TypeParameterList(SyntaxFactory.SingletonSeparatedList(SyntaxFactory.TypeParameter("T"))))
+            .WithConstraintClauses(SyntaxFactory.SingletonList(NotNullConstraint()))
+            .WithModifiers(SyntaxFactory.TokenList(
+                SyntaxFactory.Token(SyntaxKind.PrivateKeyword),
+                SyntaxFactory.Token(SyntaxKind.StaticKeyword)))
+            .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SingletonSeparatedList(parameter)))
             .WithBody(SyntaxFactory.Block(
                 Local("typeInfo", getTypeInfo),
                 Local("result", deserialize),

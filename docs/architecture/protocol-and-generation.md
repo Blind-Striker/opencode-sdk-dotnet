@@ -231,8 +231,15 @@ dispatch instead of routing it through ADR-0009's unknown carrier (ADR-0015).
 - A token-distinct structural union emits one sealed carrier record with a `Kind`, guarded typed
   accessors and factories, an explicit raw unknown arm for unclaimed non-null value tokens, and a
   source-generated converter. Pinned
-  branch order resolves subset overlap; competing branches with the same remaining token kind fail
-  binding. Same-primitive refinements collapse without emitting dead branch models (ADR-0016).
+  branch order resolves subset overlap. Named object branches may share the object token: each
+  gets a first-match claim — its required keys, and the values its literal- or enum-constrained
+  properties admit — and the converter tries the claims in declaration order, deep-parses the
+  first that holds, and keeps an object no claim holds as the raw unknown arm, which mirrors
+  upstream's Effect union decode (`Union.getParser`). A branch an earlier claim always claims,
+  and any other branch competing for an already claimed token, fails binding.
+  `tools/oracles/first-match-union.ts` runs upstream's own decoder over a checked-in corpus, and
+  a parity test holds the converters to its verdicts. Same-primitive refinements collapse without
+  emitting dead branch models (ADR-0016).
 - Known objects skip additive unmapped fields, including when the pinned schema is closed. Required
   shape and represented token types remain materializable. Pure dictionaries retain their value
   schema; a named object combined with a typed additional-properties schema fails binding until both

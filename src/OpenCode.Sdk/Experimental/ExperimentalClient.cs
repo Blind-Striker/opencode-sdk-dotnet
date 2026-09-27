@@ -142,6 +142,22 @@ public class ExperimentalClient
     }
 
     /// <summary>
+    /// Get V1 migration status. Return the progress of the V1 to V2 session history migration.
+    /// </summary>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ExperimentalMigrationV1StatusResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>experimental.migration.v1.status</c>: <c>GET /api/experimental/migration/v1</c>.
+    /// </remarks>
+    public virtual Task<ExperimentalMigrationV1StatusResponse> GetMigrationV1StatusAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Experimental.GetMigrationV1Status, ExperimentalMigrationV1StatusResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
     /// Export session. Export a complete projected session transcript.
     /// </summary>
     /// <param name = "sessionId">The &apos;sessionID&apos; route value.</param>

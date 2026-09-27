@@ -54,9 +54,11 @@ public sealed class SourceEmitterTests
         {
             var source = sources.Single(candidate => candidate.RelativePath ==
                                                      $"Internal/Serialization/{structural.Name}JsonConverter.cs");
-            var expected = structural.Arms.SelectMany(arm => arm.Tokens.Select(token =>
+            var expected = structural.Arms.Where(static arm => arm.Claim is null).SelectMany(arm => arm.Tokens.Select(token =>
                 new KeyValuePair<string, string>(token.ToString(), arm.Name)));
             await Assert.That(ReadStructuralConverterMappings(source).SequenceEqual(expected)).IsTrue();
+            var claimed = structural.Arms.Where(static arm => arm.Claim is not null).Select(static arm => arm.Name);
+            await Assert.That(ReadFirstMatchOrder(source).SequenceEqual(claimed, StringComparer.Ordinal)).IsTrue();
         }
 
         var requiredRegistryTypes = plan
@@ -234,6 +236,25 @@ public sealed class SourceEmitterTests
                 })
                 .Where(static mapping => mapping.Factory.StartsWith("From", StringComparison.Ordinal))
                 .Select(static mapping => new KeyValuePair<string, string>(mapping.Token, mapping.Factory[4..])),
+        ];
+    }
+
+    /// <summary>The arms the first-match read tries, in the order it tries them; empty without one.</summary>
+    private static IReadOnlyList<string> ReadFirstMatchOrder(GeneratedSource source)
+    {
+        var root = Parse(source);
+        return
+        [
+            .. root
+                .DescendantNodes()
+                .OfType<MethodDeclarationSyntax>()
+                .Where(static method => method.Identifier.ValueText == "ReadObject")
+                .SelectMany(static method => method.DescendantNodes().OfType<InvocationExpressionSyntax>())
+                .Select(static invocation => invocation.Expression)
+                .OfType<MemberAccessExpressionSyntax>()
+                .Select(static access => access.Name.Identifier.ValueText)
+                .Where(static name => name.StartsWith("From", StringComparison.Ordinal) && name != "FromUnknown")
+                .Select(static name => name[4..]),
         ];
     }
 

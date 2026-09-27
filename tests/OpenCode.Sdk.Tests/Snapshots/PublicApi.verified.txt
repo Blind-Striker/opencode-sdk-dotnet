@@ -50,7 +50,19 @@ namespace OpenCode.Sdk
     public class ConfigClient
     {
         protected ConfigClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ConfigResponse> GetConfigAsync(OpenCode.Sdk.ConfigRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ConfigShellsResponse> GetShellsAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class ConfigRequest : System.IEquatable<OpenCode.Sdk.ConfigRequest>
+    {
+        public ConfigRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    public sealed class ConfigResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ConfigResponse>
+    {
+        public ConfigResponse() { }
+        public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.IConfigEntry> Config { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class ConfigShellsResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ConfigShellsResponse>
     {
@@ -123,6 +135,7 @@ namespace OpenCode.Sdk
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ExperimentalMcpConnectResponse> ConnectMcpServerAsync(string server, OpenCode.Sdk.ExperimentalMcpConnectRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ExperimentalMcpDisconnectResponse> DisconnectMcpServerAsync(string server, OpenCode.Sdk.ExperimentalMcpDisconnectRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ExperimentalGenerateTextResponse> GenerateTextAsync(OpenCode.Sdk.Models.ExperimentalGenerateTextRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ExperimentalMigrationV1StatusResponse> GetMigrationV1StatusAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ExperimentalSessionExportResponse> GetSessionExportAsync(string sessionId, OpenCode.Sdk.ExperimentalSessionExportRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ExperimentalSessionStatsResponse> GetSessionStatsAsync(OpenCode.Sdk.ExperimentalSessionStatsRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ExperimentalSessionImportResponse> ImportSessionAsync(OpenCode.Sdk.Models.ExperimentalSessionImportRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
@@ -177,6 +190,12 @@ namespace OpenCode.Sdk
     public sealed class ExperimentalMcpRemoveResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ExperimentalMcpRemoveResponse>
     {
         public ExperimentalMcpRemoveResponse() { }
+    }
+    public sealed class ExperimentalMigrationV1StatusResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ExperimentalMigrationV1StatusResponse>
+    {
+        public ExperimentalMigrationV1StatusResponse() { }
+        public required OpenCode.Sdk.Models.ExperimentalMigrationV1Status MigrationV1Status { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class ExperimentalSessionExportRequest : System.IEquatable<OpenCode.Sdk.ExperimentalSessionExportRequest>
     {
@@ -588,7 +607,9 @@ namespace OpenCode.Sdk
         }
         public static class Config
         {
+            public const string GetConfigTemplate = "/api/config";
             public const string GetShells = "/api/config/shell";
+            public static string GetConfig(OpenCode.Sdk.ConfigRequest? request = null) { }
         }
         public static class Credentials
         {
@@ -617,6 +638,7 @@ namespace OpenCode.Sdk
             public const string ConnectMcpServerTemplate = "/api/experimental/mcp/{server}/connect";
             public const string DisconnectMcpServerTemplate = "/api/experimental/mcp/{server}/disconnect";
             public const string GenerateText = "/api/experimental/generate";
+            public const string GetMigrationV1Status = "/api/experimental/migration/v1";
             public const string GetSessionExportTemplate = "/api/experimental/session/{sessionID}/export";
             public const string GetSessionStatsTemplate = "/api/experimental/session/stats";
             public const string ImportSession = "/api/experimental/session/import";
@@ -2070,6 +2092,765 @@ namespace OpenCode.Sdk.Models
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
     }
+    public sealed class ConfigAgent : System.IEquatable<OpenCode.Sdk.Models.ConfigAgent>
+    {
+        public ConfigAgent() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("color")]
+        public string? Color { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("disabled")]
+        public bool? Disabled { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("hidden")]
+        public bool? Hidden { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("mode")]
+        public OpenCode.Sdk.Models.ConfigAgentMode? Mode { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("model")]
+        public OpenCode.Sdk.Models.ConfigModelSelection? Model { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("permissions")]
+        public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.PermissionRule>? Permissions { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("request")]
+        public OpenCode.Sdk.Models.ConfigAgentRequest? Request { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("steps")]
+        public long? Steps { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("system")]
+        public string? System { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.ConfigAgentMode>))]
+    public enum ConfigAgentMode
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("subagent")]
+        Subagent = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("primary")]
+        Primary = 1,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("all")]
+        All = 2,
+    }
+    public sealed class ConfigAgentRequest : System.IEquatable<OpenCode.Sdk.Models.ConfigAgentRequest>
+    {
+        public ConfigAgentRequest() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("body")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Body { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("headers")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
+    }
+    public sealed class ConfigCommand : System.IEquatable<OpenCode.Sdk.Models.ConfigCommand>
+    {
+        public ConfigCommand() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("agent")]
+        public string? Agent { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("model")]
+        public OpenCode.Sdk.Models.ConfigModelSelection? Model { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("subagent")]
+        public bool? Subagent { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("subtask")]
+        public bool? Subtask { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("template")]
+        public required string Template { get; init; }
+    }
+    public sealed class ConfigDirectory : OpenCode.Sdk.Models.IConfigEntry, System.IEquatable<OpenCode.Sdk.Models.ConfigDirectory>
+    {
+        public ConfigDirectory() { }
+        [System.Text.Json.Serialization.JsonPropertyName("path")]
+        public required string Path { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class ConfigDocument : OpenCode.Sdk.Models.IConfigEntry, System.IEquatable<OpenCode.Sdk.Models.ConfigDocument>
+    {
+        public ConfigDocument() { }
+        [System.Text.Json.Serialization.JsonPropertyName("info")]
+        public required OpenCode.Sdk.Models.ConfigInfo Info { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("path")]
+        public string? Path { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
+    }
+    public sealed class ConfigFormatterEntry : System.IEquatable<OpenCode.Sdk.Models.ConfigFormatterEntry>
+    {
+        public ConfigFormatterEntry() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("command")]
+        public System.Collections.Generic.IReadOnlyList<string>? Command { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("disabled")]
+        public bool? Disabled { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("environment")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, string>? Environment { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("extensions")]
+        public System.Collections.Generic.IReadOnlyList<string>? Extensions { get; init; }
+    }
+    public sealed class ConfigInfo : System.IEquatable<OpenCode.Sdk.Models.ConfigInfo>
+    {
+        public ConfigInfo() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("agents")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, OpenCode.Sdk.Models.ConfigAgent>? Agents { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("commands")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, OpenCode.Sdk.Models.ConfigCommand>? Commands { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("compaction")]
+        public OpenCode.Sdk.Models.ConfigInfoCompaction? Compaction { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("default_agent")]
+        public string? DefaultAgent { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("enterprise")]
+        public OpenCode.Sdk.Models.ConfigInfoEnterprise? Enterprise { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("experimental")]
+        public OpenCode.Sdk.Models.ConfigInfoExperimental? Experimental { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("formatter")]
+        public OpenCode.Sdk.Models.ConfigInfoFormatter? Formatter { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("instructions")]
+        public System.Collections.Generic.IReadOnlyList<string>? Instructions { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("lsp")]
+        public OpenCode.Sdk.Models.ConfigInfoLsp? Lsp { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("mcp")]
+        public OpenCode.Sdk.Models.ConfigInfoMcp? Mcp { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("media")]
+        public OpenCode.Sdk.Models.ConfigInfoMedia? Media { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("model")]
+        public OpenCode.Sdk.Models.ConfigModelSelection? Model { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("permissions")]
+        public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.PermissionRule>? Permissions { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("plugins")]
+        public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.ConfigInfoPlugins>? Plugins { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("providers")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, OpenCode.Sdk.Models.ConfigProvider>? Providers { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("references")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, OpenCode.Sdk.Models.ConfigReferenceEntry>? References { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("$schema")]
+        public string? Schema { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("share")]
+        public OpenCode.Sdk.Models.ConfigInfoShare? Share { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("shell")]
+        public string? Shell { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("skills")]
+        public System.Collections.Generic.IReadOnlyList<string>? Skills { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("snapshots")]
+        public bool? Snapshots { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("tool_output")]
+        public OpenCode.Sdk.Models.ConfigInfoToolOutput? ToolOutput { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("update")]
+        public OpenCode.Sdk.Models.ConfigInfoUpdate? Update { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("username")]
+        public string? Username { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("warming")]
+        public OpenCode.Sdk.Models.ConfigInfoWarming? Warming { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("watcher")]
+        public OpenCode.Sdk.Models.ConfigInfoWatcher? Watcher { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("websearch")]
+        public OpenCode.Sdk.Models.ConfigInfoWebsearch? Websearch { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("worktree")]
+        public OpenCode.Sdk.Models.ConfigWorktree? Worktree { get; init; }
+    }
+    public sealed class ConfigInfoCompaction : System.IEquatable<OpenCode.Sdk.Models.ConfigInfoCompaction>
+    {
+        public ConfigInfoCompaction() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("auto")]
+        public bool? Auto { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("buffer")]
+        public long? Buffer { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("keep")]
+        public OpenCode.Sdk.Models.ConfigInfoCompactionKeep? Keep { get; init; }
+    }
+    public sealed class ConfigInfoCompactionKeep : System.IEquatable<OpenCode.Sdk.Models.ConfigInfoCompactionKeep>
+    {
+        public ConfigInfoCompactionKeep() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("tokens")]
+        public long? Tokens { get; init; }
+    }
+    public sealed class ConfigInfoEnterprise : System.IEquatable<OpenCode.Sdk.Models.ConfigInfoEnterprise>
+    {
+        public ConfigInfoEnterprise() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("url")]
+        public string? Url { get; init; }
+    }
+    public sealed class ConfigInfoExperimental : System.IEquatable<OpenCode.Sdk.Models.ConfigInfoExperimental>
+    {
+        public ConfigInfoExperimental() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("policies")]
+        public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.ConfigInfoExperimentalPolicies>? Policies { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("portable_shell_scanner")]
+        public bool? PortableShellScanner { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("subagent_depth")]
+        public long? SubagentDepth { get; init; }
+    }
+    public sealed class ConfigInfoExperimentalPolicies : System.IEquatable<OpenCode.Sdk.Models.ConfigInfoExperimentalPolicies>
+    {
+        public ConfigInfoExperimentalPolicies() { }
+        [System.Text.Json.Serialization.JsonPropertyName("action")]
+        public required OpenCode.Sdk.Models.ConfigInfoExperimentalPoliciesAction Action { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("effect")]
+        public required OpenCode.Sdk.Models.ConfigInfoExperimentalPoliciesEffect Effect { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("resource")]
+        public required string Resource { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.ConfigInfoExperimentalPoliciesAction>))]
+    public enum ConfigInfoExperimentalPoliciesAction
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("provider.use")]
+        ProviderUse = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("permission")]
+        Permission = 1,
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.ConfigInfoExperimentalPoliciesEffect>))]
+    public enum ConfigInfoExperimentalPoliciesEffect
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("allow")]
+        Allow = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("deny")]
+        Deny = 1,
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ConfigInfoFormatterJsonConverter))]
+    public sealed class ConfigInfoFormatter : System.IEquatable<OpenCode.Sdk.Models.ConfigInfoFormatter>
+    {
+        public bool Boolean { get; }
+        public System.Collections.Generic.IReadOnlyDictionary<string, OpenCode.Sdk.Models.ConfigFormatterEntry> ConfigFormatterEntryDictionary { get; }
+        public OpenCode.Sdk.Models.ConfigInfoFormatterKind Kind { get; }
+        public System.Text.Json.JsonElement Unknown { get; }
+        public override string ToString() { }
+        public static OpenCode.Sdk.Models.ConfigInfoFormatter FromBoolean(bool value) { }
+        public static OpenCode.Sdk.Models.ConfigInfoFormatter FromConfigFormatterEntryDictionary(System.Collections.Generic.IReadOnlyDictionary<string, OpenCode.Sdk.Models.ConfigFormatterEntry> value) { }
+        public static OpenCode.Sdk.Models.ConfigInfoFormatter FromUnknown(System.Text.Json.JsonElement value) { }
+    }
+    public enum ConfigInfoFormatterKind
+    {
+        Boolean = 0,
+        ConfigFormatterEntryDictionary = 1,
+        Unknown = 2,
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ConfigInfoLspJsonConverter))]
+    public sealed class ConfigInfoLsp : System.IEquatable<OpenCode.Sdk.Models.ConfigInfoLsp>
+    {
+        public bool Boolean { get; }
+        public System.Collections.Generic.IReadOnlyDictionary<string, OpenCode.Sdk.Models.ConfigLspEntry> ConfigLspEntryDictionary { get; }
+        public OpenCode.Sdk.Models.ConfigInfoLspKind Kind { get; }
+        public System.Text.Json.JsonElement Unknown { get; }
+        public override string ToString() { }
+        public static OpenCode.Sdk.Models.ConfigInfoLsp FromBoolean(bool value) { }
+        public static OpenCode.Sdk.Models.ConfigInfoLsp FromConfigLspEntryDictionary(System.Collections.Generic.IReadOnlyDictionary<string, OpenCode.Sdk.Models.ConfigLspEntry> value) { }
+        public static OpenCode.Sdk.Models.ConfigInfoLsp FromUnknown(System.Text.Json.JsonElement value) { }
+    }
+    public enum ConfigInfoLspKind
+    {
+        Boolean = 0,
+        ConfigLspEntryDictionary = 1,
+        Unknown = 2,
+    }
+    public sealed class ConfigInfoMcp : System.IEquatable<OpenCode.Sdk.Models.ConfigInfoMcp>
+    {
+        public ConfigInfoMcp() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("servers")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, OpenCode.Sdk.Models.IMcp>? Servers { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("timeout")]
+        public OpenCode.Sdk.Models.ConfigInfoMcpTimeout? Timeout { get; init; }
+    }
+    public sealed class ConfigInfoMcpTimeout : System.IEquatable<OpenCode.Sdk.Models.ConfigInfoMcpTimeout>
+    {
+        public ConfigInfoMcpTimeout() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("catalog")]
+        public long? Catalog { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("execution")]
+        public long? Execution { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("startup")]
+        public long? Startup { get; init; }
+    }
+    public sealed class ConfigInfoMedia : System.IEquatable<OpenCode.Sdk.Models.ConfigInfoMedia>
+    {
+        public ConfigInfoMedia() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("image")]
+        public OpenCode.Sdk.Models.ConfigInfoMediaImage? Image { get; init; }
+    }
+    public sealed class ConfigInfoMediaImage : System.IEquatable<OpenCode.Sdk.Models.ConfigInfoMediaImage>
+    {
+        public ConfigInfoMediaImage() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("auto_resize")]
+        public bool? AutoResize { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("max_base64_bytes")]
+        public long? MaxBase64Bytes { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("max_height")]
+        public long? MaxHeight { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("max_width")]
+        public long? MaxWidth { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ConfigInfoPluginsJsonConverter))]
+    public sealed class ConfigInfoPlugins : System.IEquatable<OpenCode.Sdk.Models.ConfigInfoPlugins>
+    {
+        public OpenCode.Sdk.Models.ConfigPluginEntry ConfigPluginEntry { get; }
+        public OpenCode.Sdk.Models.ConfigInfoPluginsKind Kind { get; }
+        public string Text { get; }
+        public System.Text.Json.JsonElement Unknown { get; }
+        public override string ToString() { }
+        public static OpenCode.Sdk.Models.ConfigInfoPlugins FromConfigPluginEntry(OpenCode.Sdk.Models.ConfigPluginEntry value) { }
+        public static OpenCode.Sdk.Models.ConfigInfoPlugins FromText(string value) { }
+        public static OpenCode.Sdk.Models.ConfigInfoPlugins FromUnknown(System.Text.Json.JsonElement value) { }
+    }
+    public enum ConfigInfoPluginsKind
+    {
+        Text = 0,
+        ConfigPluginEntry = 1,
+        Unknown = 2,
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.ConfigInfoShare>))]
+    public enum ConfigInfoShare
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("manual")]
+        Manual = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("auto")]
+        Auto = 1,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("disabled")]
+        Disabled = 2,
+    }
+    public sealed class ConfigInfoToolOutput : System.IEquatable<OpenCode.Sdk.Models.ConfigInfoToolOutput>
+    {
+        public ConfigInfoToolOutput() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("max_bytes")]
+        public long? MaxBytes { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("max_lines")]
+        public long? MaxLines { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.ConfigInfoUpdate>))]
+    public enum ConfigInfoUpdate
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("disable")]
+        Disable = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("notify")]
+        Notify = 1,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("auto")]
+        Auto = 2,
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ConfigInfoWarmingJsonConverter))]
+    public sealed class ConfigInfoWarming : System.IEquatable<OpenCode.Sdk.Models.ConfigInfoWarming>
+    {
+        public bool Boolean { get; }
+        public OpenCode.Sdk.Models.ConfigWarming ConfigWarming { get; }
+        public OpenCode.Sdk.Models.ConfigInfoWarmingKind Kind { get; }
+        public System.Text.Json.JsonElement Unknown { get; }
+        public override string ToString() { }
+        public static OpenCode.Sdk.Models.ConfigInfoWarming FromBoolean(bool value) { }
+        public static OpenCode.Sdk.Models.ConfigInfoWarming FromConfigWarming(OpenCode.Sdk.Models.ConfigWarming value) { }
+        public static OpenCode.Sdk.Models.ConfigInfoWarming FromUnknown(System.Text.Json.JsonElement value) { }
+    }
+    public enum ConfigInfoWarmingKind
+    {
+        Boolean = 0,
+        ConfigWarming = 1,
+        Unknown = 2,
+    }
+    public sealed class ConfigInfoWatcher : System.IEquatable<OpenCode.Sdk.Models.ConfigInfoWatcher>
+    {
+        public ConfigInfoWatcher() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("ignore")]
+        public System.Collections.Generic.IReadOnlyList<string>? Ignore { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ConfigInfoWebsearchJsonConverter))]
+    public sealed class ConfigInfoWebsearch : System.IEquatable<OpenCode.Sdk.Models.ConfigInfoWebsearch>
+    {
+        public bool Boolean { get; }
+        public OpenCode.Sdk.Models.ConfigWebSearchInfo ConfigWebSearchInfo { get; }
+        public OpenCode.Sdk.Models.ConfigInfoWebsearchKind Kind { get; }
+        public System.Text.Json.JsonElement Unknown { get; }
+        public override string ToString() { }
+        public static OpenCode.Sdk.Models.ConfigInfoWebsearch FromBoolean(bool value) { }
+        public static OpenCode.Sdk.Models.ConfigInfoWebsearch FromConfigWebSearchInfo(OpenCode.Sdk.Models.ConfigWebSearchInfo value) { }
+        public static OpenCode.Sdk.Models.ConfigInfoWebsearch FromUnknown(System.Text.Json.JsonElement value) { }
+    }
+    public enum ConfigInfoWebsearchKind
+    {
+        Boolean = 0,
+        ConfigWebSearchInfo = 1,
+        Unknown = 2,
+    }
+    public sealed class ConfigLspDisabled : System.IEquatable<OpenCode.Sdk.Models.ConfigLspDisabled>
+    {
+        public ConfigLspDisabled() { }
+        [System.Text.Json.Serialization.JsonPropertyName("disabled")]
+        public required bool Disabled { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ConfigLspEntryJsonConverter))]
+    public sealed class ConfigLspEntry : System.IEquatable<OpenCode.Sdk.Models.ConfigLspEntry>
+    {
+        public OpenCode.Sdk.Models.ConfigLspDisabled ConfigLspDisabled { get; }
+        public OpenCode.Sdk.Models.ConfigLspServer ConfigLspServer { get; }
+        public OpenCode.Sdk.Models.ConfigLspEntryKind Kind { get; }
+        public System.Text.Json.JsonElement Unknown { get; }
+        public override string ToString() { }
+        public static OpenCode.Sdk.Models.ConfigLspEntry FromConfigLspDisabled(OpenCode.Sdk.Models.ConfigLspDisabled value) { }
+        public static OpenCode.Sdk.Models.ConfigLspEntry FromConfigLspServer(OpenCode.Sdk.Models.ConfigLspServer value) { }
+        public static OpenCode.Sdk.Models.ConfigLspEntry FromUnknown(System.Text.Json.JsonElement value) { }
+    }
+    public enum ConfigLspEntryKind
+    {
+        ConfigLspDisabled = 0,
+        ConfigLspServer = 1,
+        Unknown = 2,
+    }
+    public sealed class ConfigLspServer : System.IEquatable<OpenCode.Sdk.Models.ConfigLspServer>
+    {
+        public ConfigLspServer() { }
+        [System.Text.Json.Serialization.JsonPropertyName("command")]
+        public required System.Collections.Generic.IReadOnlyList<string> Command { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("disabled")]
+        public bool? Disabled { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("env")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, string>? Env { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("extensions")]
+        public System.Collections.Generic.IReadOnlyList<string>? Extensions { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("initialization")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Initialization { get; init; }
+    }
+    public sealed class ConfigModel : System.IEquatable<OpenCode.Sdk.Models.ConfigModel>
+    {
+        public ConfigModel() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("body")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Body { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("capabilities")]
+        public OpenCode.Sdk.Models.ModelCapabilities? Capabilities { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("compatibility")]
+        public OpenCode.Sdk.Models.ModelCompatibility? Compatibility { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("cost")]
+        public OpenCode.Sdk.Models.ConfigModelPricing? Cost { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("disabled")]
+        public bool? Disabled { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("family")]
+        public string? Family { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("headers")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("limit")]
+        public OpenCode.Sdk.Models.ConfigModelLimit? Limit { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("modelID")]
+        public string? ModelId { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string? Name { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("package")]
+        public string? Package { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("settings")]
+        public OpenCode.Sdk.Models.ConfigModelSettings? Settings { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("variants")]
+        public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.ConfigModelVariants>? Variants { get; init; }
+    }
+    public sealed class ConfigModelCost : System.IEquatable<OpenCode.Sdk.Models.ConfigModelCost>
+    {
+        public ConfigModelCost() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("cache")]
+        public OpenCode.Sdk.Models.ConfigModelCostCache? Cache { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("input")]
+        public required double Input { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("output")]
+        public required double Output { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("tier")]
+        public OpenCode.Sdk.Models.ConfigModelCostTier? Tier { get; init; }
+    }
+    public sealed class ConfigModelCostCache : System.IEquatable<OpenCode.Sdk.Models.ConfigModelCostCache>
+    {
+        public ConfigModelCostCache() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("read")]
+        public double? Read { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("write")]
+        public double? Write { get; init; }
+    }
+    public sealed class ConfigModelCostTier : System.IEquatable<OpenCode.Sdk.Models.ConfigModelCostTier>
+    {
+        public ConfigModelCostTier() { }
+        [System.Text.Json.Serialization.JsonPropertyName("size")]
+        public required long Size { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public required string Type { get; init; }
+    }
+    public sealed class ConfigModelLimit : System.IEquatable<OpenCode.Sdk.Models.ConfigModelLimit>
+    {
+        public ConfigModelLimit() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("context")]
+        public long? Context { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("input")]
+        public long? Input { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("output")]
+        public long? Output { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ConfigModelPricingJsonConverter))]
+    public sealed class ConfigModelPricing : System.IEquatable<OpenCode.Sdk.Models.ConfigModelPricing>
+    {
+        public OpenCode.Sdk.Models.ConfigModelCost ConfigModelCost { get; }
+        public System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.ConfigModelCost> ConfigModelCostList { get; }
+        public OpenCode.Sdk.Models.ConfigModelPricingKind Kind { get; }
+        public System.Text.Json.JsonElement Unknown { get; }
+        public override string ToString() { }
+        public static OpenCode.Sdk.Models.ConfigModelPricing FromConfigModelCost(OpenCode.Sdk.Models.ConfigModelCost value) { }
+        public static OpenCode.Sdk.Models.ConfigModelPricing FromConfigModelCostList(System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.ConfigModelCost> value) { }
+        public static OpenCode.Sdk.Models.ConfigModelPricing FromUnknown(System.Text.Json.JsonElement value) { }
+    }
+    public enum ConfigModelPricingKind
+    {
+        ConfigModelCost = 0,
+        ConfigModelCostList = 1,
+        Unknown = 2,
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ConfigModelSelectionJsonConverter))]
+    public sealed class ConfigModelSelection : System.IEquatable<OpenCode.Sdk.Models.ConfigModelSelection>
+    {
+        public OpenCode.Sdk.Models.ConfigModelSelectionExplicit ConfigModelSelectionExplicit { get; }
+        public OpenCode.Sdk.Models.ConfigModelSelectionKind Kind { get; }
+        public string Text { get; }
+        public System.Text.Json.JsonElement Unknown { get; }
+        public override string ToString() { }
+        public static OpenCode.Sdk.Models.ConfigModelSelection FromConfigModelSelectionExplicit(OpenCode.Sdk.Models.ConfigModelSelectionExplicit value) { }
+        public static OpenCode.Sdk.Models.ConfigModelSelection FromText(string value) { }
+        public static OpenCode.Sdk.Models.ConfigModelSelection FromUnknown(System.Text.Json.JsonElement value) { }
+    }
+    public sealed class ConfigModelSelectionExplicit : System.IEquatable<OpenCode.Sdk.Models.ConfigModelSelectionExplicit>
+    {
+        public ConfigModelSelectionExplicit() { }
+        [System.Text.Json.Serialization.JsonPropertyName("model")]
+        public required string Model { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("providerID")]
+        public required string ProviderId { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("variant")]
+        public string? Variant { get; init; }
+    }
+    public enum ConfigModelSelectionKind
+    {
+        Text = 0,
+        ConfigModelSelectionExplicit = 1,
+        Unknown = 2,
+    }
+    public sealed class ConfigModelSettings : System.IEquatable<OpenCode.Sdk.Models.ConfigModelSettings>
+    {
+        public ConfigModelSettings() { }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> AdditionalProperties { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("compaction")]
+        public OpenCode.Sdk.Models.IProviderCompaction? Compaction { get; init; }
+    }
+    public sealed class ConfigModelVariants : System.IEquatable<OpenCode.Sdk.Models.ConfigModelVariants>
+    {
+        public ConfigModelVariants() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("body")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Body { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("headers")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public required string Id { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("settings")]
+        public OpenCode.Sdk.Models.ConfigModelSettings? Settings { get; init; }
+    }
+    public sealed class ConfigPluginEntry : System.IEquatable<OpenCode.Sdk.Models.ConfigPluginEntry>
+    {
+        public ConfigPluginEntry() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("options")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Options { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("package")]
+        public required string Package { get; init; }
+    }
+    public sealed class ConfigProvider : System.IEquatable<OpenCode.Sdk.Models.ConfigProvider>
+    {
+        public ConfigProvider() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("body")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Body { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("canonical")]
+        public string? Canonical { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("env")]
+        public System.Collections.Generic.IReadOnlyList<string>? Env { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("headers")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("models")]
+        public System.Collections.Generic.IReadOnlyDictionary<string, OpenCode.Sdk.Models.ConfigModel>? Models { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string? Name { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("package")]
+        public string? Package { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("settings")]
+        public OpenCode.Sdk.Models.ConfigProviderSettings? Settings { get; init; }
+    }
+    public sealed class ConfigProviderSettings : System.IEquatable<OpenCode.Sdk.Models.ConfigProviderSettings>
+    {
+        public ConfigProviderSettings() { }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement> AdditionalProperties { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("chunkTimeout")]
+        public double? ChunkTimeout { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("compaction")]
+        public OpenCode.Sdk.Models.IProviderCompaction? Compaction { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("timeout")]
+        public OpenCode.Sdk.Models.ConfigProviderSettingsTimeout? Timeout { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("transport")]
+        public OpenCode.Sdk.Models.ProviderTransport? Transport { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ConfigProviderSettingsTimeoutJsonConverter))]
+    public sealed class ConfigProviderSettingsTimeout : System.IEquatable<OpenCode.Sdk.Models.ConfigProviderSettingsTimeout>
+    {
+        public bool Boolean { get; }
+        public OpenCode.Sdk.Models.ConfigProviderSettingsTimeoutKind Kind { get; }
+        public double Number { get; }
+        public System.Text.Json.JsonElement Unknown { get; }
+        public override string ToString() { }
+        public static OpenCode.Sdk.Models.ConfigProviderSettingsTimeout FromBoolean(bool value) { }
+        public static OpenCode.Sdk.Models.ConfigProviderSettingsTimeout FromNumber(double value) { }
+        public static OpenCode.Sdk.Models.ConfigProviderSettingsTimeout FromUnknown(System.Text.Json.JsonElement value) { }
+    }
+    public enum ConfigProviderSettingsTimeoutKind
+    {
+        Number = 0,
+        Boolean = 1,
+        Unknown = 2,
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ConfigReferenceEntryJsonConverter))]
+    public sealed class ConfigReferenceEntry : System.IEquatable<OpenCode.Sdk.Models.ConfigReferenceEntry>
+    {
+        public OpenCode.Sdk.Models.ConfigReferenceGit ConfigReferenceGit { get; }
+        public OpenCode.Sdk.Models.ConfigReferenceLocal ConfigReferenceLocal { get; }
+        public OpenCode.Sdk.Models.ConfigReferenceEntryKind Kind { get; }
+        public string Text { get; }
+        public System.Text.Json.JsonElement Unknown { get; }
+        public override string ToString() { }
+        public static OpenCode.Sdk.Models.ConfigReferenceEntry FromConfigReferenceGit(OpenCode.Sdk.Models.ConfigReferenceGit value) { }
+        public static OpenCode.Sdk.Models.ConfigReferenceEntry FromConfigReferenceLocal(OpenCode.Sdk.Models.ConfigReferenceLocal value) { }
+        public static OpenCode.Sdk.Models.ConfigReferenceEntry FromText(string value) { }
+        public static OpenCode.Sdk.Models.ConfigReferenceEntry FromUnknown(System.Text.Json.JsonElement value) { }
+    }
+    public enum ConfigReferenceEntryKind
+    {
+        Text = 0,
+        ConfigReferenceGit = 1,
+        ConfigReferenceLocal = 2,
+        Unknown = 3,
+    }
+    public sealed class ConfigReferenceGit : System.IEquatable<OpenCode.Sdk.Models.ConfigReferenceGit>
+    {
+        public ConfigReferenceGit() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("branch")]
+        public string? Branch { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("hidden")]
+        public bool? Hidden { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("repository")]
+        public required string Repository { get; init; }
+    }
+    public sealed class ConfigReferenceLocal : System.IEquatable<OpenCode.Sdk.Models.ConfigReferenceLocal>
+    {
+        public ConfigReferenceLocal() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("hidden")]
+        public bool? Hidden { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("path")]
+        public required string Path { get; init; }
+    }
     public sealed class ConfigShellOption : System.IEquatable<OpenCode.Sdk.Models.ConfigShellOption>
     {
         public ConfigShellOption() { }
@@ -2097,6 +2878,31 @@ namespace OpenCode.Sdk.Models
         public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
+    }
+    public sealed class ConfigWarming : System.IEquatable<OpenCode.Sdk.Models.ConfigWarming>
+    {
+        public ConfigWarming() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("duration")]
+        public string? Duration { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("interval")]
+        public string? Interval { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("prompt")]
+        public string? Prompt { get; init; }
+    }
+    public sealed class ConfigWebSearchInfo : System.IEquatable<OpenCode.Sdk.Models.ConfigWebSearchInfo>
+    {
+        public ConfigWebSearchInfo() { }
+        [System.Text.Json.Serialization.JsonPropertyName("provider")]
+        public required string Provider { get; init; }
+    }
+    public sealed class ConfigWorktree : System.IEquatable<OpenCode.Sdk.Models.ConfigWorktree>
+    {
+        public ConfigWorktree() { }
+        [System.Text.Json.Serialization.JsonPropertyName("directory")]
+        public required string Directory { get; init; }
     }
     public sealed class ConflictError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.ConflictError>
     {
@@ -2268,6 +3074,69 @@ namespace OpenCode.Sdk.Models
         public required OpenCode.Sdk.Models.IMcp Config { get; init; }
         [System.Text.Json.Serialization.JsonIgnore]
         public OpenCode.Sdk.LocationSelector? Location { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ExperimentalMigrationV1StatusJsonConverter))]
+    public sealed class ExperimentalMigrationV1Status : System.IEquatable<OpenCode.Sdk.Models.ExperimentalMigrationV1Status>
+    {
+        public OpenCode.Sdk.Models.ExperimentalMigrationV1StatusError ExperimentalMigrationV1StatusError { get; }
+        public OpenCode.Sdk.Models.ExperimentalMigrationV1StatusIdle ExperimentalMigrationV1StatusIdle { get; }
+        public OpenCode.Sdk.Models.ExperimentalMigrationV1StatusRunning ExperimentalMigrationV1StatusRunning { get; }
+        public OpenCode.Sdk.Models.ExperimentalMigrationV1StatusKind Kind { get; }
+        public System.Text.Json.JsonElement Unknown { get; }
+        public override string ToString() { }
+        public static OpenCode.Sdk.Models.ExperimentalMigrationV1Status FromExperimentalMigrationV1StatusError(OpenCode.Sdk.Models.ExperimentalMigrationV1StatusError value) { }
+        public static OpenCode.Sdk.Models.ExperimentalMigrationV1Status FromExperimentalMigrationV1StatusIdle(OpenCode.Sdk.Models.ExperimentalMigrationV1StatusIdle value) { }
+        public static OpenCode.Sdk.Models.ExperimentalMigrationV1Status FromExperimentalMigrationV1StatusRunning(OpenCode.Sdk.Models.ExperimentalMigrationV1StatusRunning value) { }
+        public static OpenCode.Sdk.Models.ExperimentalMigrationV1Status FromUnknown(System.Text.Json.JsonElement value) { }
+    }
+    public sealed class ExperimentalMigrationV1StatusError : System.IEquatable<OpenCode.Sdk.Models.ExperimentalMigrationV1StatusError>
+    {
+        public ExperimentalMigrationV1StatusError() { }
+        [System.Text.Json.Serialization.JsonPropertyName("error")]
+        public required string Error { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public required string Status { get; init; }
+    }
+    public sealed class ExperimentalMigrationV1StatusIdle : System.IEquatable<OpenCode.Sdk.Models.ExperimentalMigrationV1StatusIdle>
+    {
+        public ExperimentalMigrationV1StatusIdle() { }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public required OpenCode.Sdk.Models.ExperimentalMigrationV1StatusIdleStatus Status { get; init; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.StrictJsonStringEnumConverter<OpenCode.Sdk.Models.ExperimentalMigrationV1StatusIdleStatus>))]
+    public enum ExperimentalMigrationV1StatusIdleStatus
+    {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("required")]
+        Required = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("completed")]
+        Completed = 1,
+    }
+    public enum ExperimentalMigrationV1StatusKind
+    {
+        ExperimentalMigrationV1StatusIdle = 0,
+        ExperimentalMigrationV1StatusRunning = 1,
+        ExperimentalMigrationV1StatusError = 2,
+        Unknown = 3,
+    }
+    public sealed class ExperimentalMigrationV1StatusRunning : System.IEquatable<OpenCode.Sdk.Models.ExperimentalMigrationV1StatusRunning>
+    {
+        public ExperimentalMigrationV1StatusRunning() { }
+        [System.Text.Json.Serialization.JsonPropertyName("progress")]
+        public required OpenCode.Sdk.Models.ExperimentalMigrationV1StatusRunningProgress Progress { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public required string Status { get; init; }
+    }
+    public sealed class ExperimentalMigrationV1StatusRunningProgress : System.IEquatable<OpenCode.Sdk.Models.ExperimentalMigrationV1StatusRunningProgress>
+    {
+        public ExperimentalMigrationV1StatusRunningProgress() { }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("denominator")]
+        public long? Denominator { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("label")]
+        public required string Label { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("numerator")]
+        public long? Numerator { get; init; }
     }
     public sealed class ExperimentalSessionImportRequest : System.IEquatable<OpenCode.Sdk.Models.ExperimentalSessionImportRequest>
     {
@@ -2840,6 +3709,12 @@ namespace OpenCode.Sdk.Models
         File = 0,
         [System.Text.Json.Serialization.JsonStringEnumMemberName("directory")]
         Directory = 1,
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ConfigEntryJsonConverter))]
+    public interface IConfigEntry
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        string Type { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.ConnectionInfoJsonConverter))]
     public interface IConnectionInfo
@@ -9371,6 +10246,15 @@ namespace OpenCode.Sdk.Models
         public required string Message { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("_tag")]
         public string Tag { get; }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownConfigEntryJsonConverter))]
+    public sealed class UnknownConfigEntry : OpenCode.Sdk.Models.IConfigEntry, System.IEquatable<OpenCode.Sdk.Models.UnknownConfigEntry>
+    {
+        [System.Text.Json.Serialization.JsonConstructor]
+        public UnknownConfigEntry(string type, System.Text.Json.JsonElement payload) { }
+        public System.Text.Json.JsonElement Payload { get; }
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(OpenCode.Sdk.Internal.Serialization.UnknownConnectionInfoJsonConverter))]
     public sealed class UnknownConnectionInfo : OpenCode.Sdk.Models.IConnectionInfo, System.IEquatable<OpenCode.Sdk.Models.UnknownConnectionInfo>

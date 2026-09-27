@@ -11,6 +11,21 @@ Nightly builds of `master` are on
 
 ### ✨ Added
 
+- **The configuration can be read back.** `client.Config.GetConfigAsync()` (`config.get`) returns
+  the configuration documents and discovery sources for the location, from lowest to highest
+  priority: a `ConfigDocument` carries its `ConfigInfo`, a `ConfigDirectory` the directory it came
+  from. `Experimental.UpdateConfigAsync` writes the global file and the server reloads it
+  asynchronously, publishing `config.updated` once the loaded configuration changes, so read after
+  that event.
+- **`client.Experimental.GetMigrationV1StatusAsync()`** (`experimental.migration.v1.status`)
+  returns the V1 session-history migration status: `ExperimentalMigrationV1StatusIdle`
+  (`Required` or `Completed`), `…Running` with its progress, or `…Error`.
+- **Unions of objects without a discriminator are typed.** A structural union carrier whose object
+  members share the JSON object token now selects a member the way upstream's decoder does: the
+  first member in declaration order whose required keys are present and whose literal-constrained
+  properties hold admitted values, then that member's full parse. A value no member claims is kept
+  as the carrier's raw `Unknown`. The configuration's reference entries (`ConfigReferenceEntry`),
+  language-server entries (`ConfigLspEntry`), and the migration status use it.
 - **Operation members name their OpenAPI operation.** Each generated operation method, each
   `Enumerate*Async` companion, and each hand-written PTY and persistent-PTY door carries an XML
   `<remarks>` with its operation id, HTTP method, and route, for example

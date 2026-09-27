@@ -25,6 +25,15 @@ internal static class EmitterPlanFixture
             Curation(Groups(StructuralUnionScenario.GroupName, RootGroup())));
     }
 
+    public static async Task<EmitPlan> CreateFirstMatchUnionPlanAsync()
+    {
+        var document = await BindingTestHost.IngestAsync(new FirstMatchUnionScenario());
+        return new BindingTestHost().Bind(
+            document,
+            Selection(FirstMatchUnionScenario.OperationId),
+            Curation(Groups(FirstMatchUnionScenario.GroupName, RootGroup())));
+    }
+
     public static EmitPlan Create()
     {
         var models = new ModelPlan[]
