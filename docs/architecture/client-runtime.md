@@ -362,7 +362,11 @@ credential is injected into the child environment as `OPENCODE_PASSWORD`, after 
 `Environment` entries so it can never be shadowed. Readiness is the single JSON stdout line the
 child prints once fully booted; stdin stays open as the ownership lease for as long as the server
 runs, and every later stdout line plus all of stderr is drained continuously (stderr into a bounded
-tail kept for failure diagnostics) so a chatty child can never wedge the pipes.
+tail kept for failure diagnostics) so a chatty child can never wedge the pipes. On Windows,
+`Process` creates those pipes synchronous before .NET 11, so each pending read holds a thread-pool
+thread for the server's life: two per standalone server. .NET 11's `Process` opens overlapped pipes
+(dotnet/runtime#125643), which removes the cost on that runtime with no SDK change; .NET Framework
+keeps it. The contender spawn does not pay it, because it creates its own stderr pipe (ADR-0027).
 
 `Command[0]` is resolved once per start, before the process is created, the way a shell resolves
 it, and the resolved path is what the process starts and what a failure names. A command carrying
