@@ -107,23 +107,22 @@ Repository generation is a separate mutating path: after writing generated sourc
 runs project-scoped full format over only generator-owned paths. That canonicalization step is not
 the solution-wide CI lint gate this split optimizes.
 
-CI runs the main test pass with a measured number of test modules at once per runner: two on
-Windows, four on Linux and three on macOS (`test-modules` in the `ci.yml` matrix).
+CI runs the main test pass with a measured number of test modules at once per runner: four on
+Windows and Linux, three on macOS (`test-modules` in the `ci.yml` matrix).
 Microsoft.Testing.Platform overlaps test modules up to the processor count by default, and each
 `OpenCode.Sdk.Tests` host starts its own pinned servers, so the cap fixes the measured overlap
 instead of following the runner's core count. The values come from runs paired on the same VM
-against two at a time, six per OS (2026-09-27, runs 36318362319 and 36320089583):
+(2026-09-27): Linux against two, six runs (runs 36318362319 and 36320089583); Windows at two, three
+and four, nine runs (run 36342010141); macOS at three and four, six runs (run 36328076697):
 
 - **Linux, four:** the main pass took 27% less time, and the most loaded wall-clock-bound test used
   0.28 of its bound at two and 0.36 at four.
-- **Windows, two:** the process-tree startup tests in `OpenCodeServerLifecycleTests` usually take
-  under a second but stall for several seconds, against stage bounds of 10 to 15 seconds. The
-  stalls grow with the overlap: 3 of 96 samples over four seconds at two (longest 12 s), 17 of 96
-  at four (longest 16.3 s).
-- **macOS, three:** the main pass took 18% less time. The loopback `ServicePtyHandoffTests`, with
-  a 5 s bound, used about half of it at three and two thirds at four, both during a concurrent
-  Roslyn compilation burst from `OpenCode.Sdk.Tools.Tests`, which stretches wall-clock-bound tests
-  more than the number of modules does.
+- **Windows, four:** the main pass took 17% less time. The process-tree startup tests in
+  `OpenCodeServerLifecycleTests`, whose stage bounds are 10 to 15 seconds, stayed under two
+  seconds (none of 180 samples over four seconds at two, three or four), and the most loaded
+  wall-clock-bound test used 0.25 of its bound at four.
+- **macOS, three:** four at a time saves only about 3% (8 s) over three and costs no margin: the
+  loopback `ServicePtyHandoffTests`, with a 5 s bound, used 0.51 of it at three and 0.52 at four.
 
 The local gate on a workstation needs no cap, and a live test whose proof rides a wall-clock bound
 the host can miss carries the keyless `[NotInParallel]` (`tests/Shared/ParallelConstraintKeys.cs`).
