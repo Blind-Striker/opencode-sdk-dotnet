@@ -40,14 +40,15 @@ public class OpenCodeServer : IAsyncDisposable
     private static readonly TimeSpan ForcedExitTimeout = TimeSpan.FromSeconds(10);
 
     /// <summary>
-    /// Bounds the diagnostics-only output drain on every failure path. A drain is best-effort
-    /// only — it must never turn into the unbounded hang <see cref="FlushOutputDrainAsync"/>'s
-    /// remarks describe, so a caller always regains control within this window regardless of
+    /// Bounds every wait for the child's redirected output to reach end-of-stream. End-of-stream
+    /// arrives only when every process holding a write end closes it, and a surviving descendant
+    /// can hold one open, so a caller always regains control within this window regardless of
     /// what the child (or anything the child spawned) is still holding open.
     /// </summary>
     private static readonly TimeSpan DrainTimeout = TimeSpan.FromSeconds(2);
 
     private readonly Process? _process;
+    private readonly ChildOutputPump? _pump;
     private readonly Uri? _endpoint;
     private readonly string? _password;
     private readonly TimeSpan _gracefulShutdownTimeout;
@@ -57,12 +58,14 @@ public class OpenCodeServer : IAsyncDisposable
 
     private OpenCodeServer(
         Process process,
+        ChildOutputPump pump,
         Uri endpoint,
         string password,
         TimeSpan gracefulShutdownTimeout,
         OpenCodeServerOutput? output)
     {
         _process = process;
+        _pump = pump;
         _endpoint = endpoint;
         _password = password;
         _gracefulShutdownTimeout = gracefulShutdownTimeout;
@@ -109,6 +112,12 @@ public class OpenCodeServer : IAsyncDisposable
     /// member.
     /// </summary>
     public virtual bool OwnsProcess => _process is not null;
+
+    /// <summary>
+    /// Gets a task that completes once the owned child's output readers hold no thread any more;
+    /// friend-assembly test seam for the release disposal guarantees.
+    /// </summary>
+    internal Task OutputReadersEnded => _pump?.ReadersEnded ?? Task.CompletedTask;
 
     /// <summary>Gets the endpoint: the port-zero binding of a started server, or the URL a registration published.</summary>
     public virtual Uri Endpoint => _endpoint ?? throw MockSeam.CreateError("OpenCodeServer", "Endpoint");
@@ -300,6 +309,7 @@ public class OpenCodeServer : IAsyncDisposable
         // local is nulled only once the new OpenCodeServer has taken ownership on success
         // (TransportPolicy.CreateOwnedHttpClient's handler-ownership idiom, mirrored here).
         Process? process = null;
+        ChildOutputPump? pump = null;
         try
         {
             // Once per start, before anything is spawned: what the process starts, and what a
@@ -310,20 +320,21 @@ public class OpenCodeServer : IAsyncDisposable
             var stderrGate = new object();
             var stderrTail = new Queue<string>(StderrRetainedLines);
             var readyLine = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-            AttachOutputHandlers(process, readyLine, stderrGate, stderrTail, output);
-            StartChildProcess(process, executable);
+            var (onStandardOutput, onStandardError) = CreateOutputHandlers(readyLine, stderrGate, stderrTail, output);
+            pump = StartChildProcess(process, executable, onStandardOutput, onStandardError);
 
             var line = await WaitForReadyLineAsync(
-                process, readyLine, readinessTimeout, stderrGate, stderrTail, cancellationToken).ConfigureAwait(false);
+                process, pump, readyLine, readinessTimeout, stderrGate, stderrTail, cancellationToken).ConfigureAwait(false);
             if (!ServerReadyLine.TryParse(line, out var endpoint))
             {
-                _ = await EndStartupFailureAsync(process).ConfigureAwait(false);
+                _ = await EndStartupFailureAsync(process, pump).ConfigureAwait(false);
                 throw new OpenCodeServerException(
                     $"The server's first stdout line is not the JSON readiness contract: '{line}'.{DescribeStderr(stderrGate, stderrTail)}");
             }
 
-            var started = new OpenCodeServer(process, endpoint, password, gracefulShutdownTimeout, output);
+            var started = new OpenCodeServer(process, pump, endpoint, password, gracefulShutdownTimeout, output);
             process = null;
+            pump = null;
             return started;
         }
         finally
@@ -331,7 +342,13 @@ public class OpenCodeServer : IAsyncDisposable
             if (process is not null)
             {
                 // A failed start: the child was ended and its output drained (as far as the
-                // bound allowed) on the way here, so what the collector holds is final.
+                // bound allowed) on the way here. Releasing the readers ends any read still
+                // waiting, so no reader outlives the start and what the collector holds is final.
+                if (pump is not null)
+                {
+                    await pump.ReleaseAsync().ConfigureAwait(false);
+                }
+
                 output?.Complete();
             }
 
@@ -389,7 +406,7 @@ public class OpenCodeServer : IAsyncDisposable
         }
 
         GC.SuppressFinalize(this);
-        if (_process is null)
+        if (_process is null || _pump is null)
         {
             return;
         }
@@ -401,12 +418,15 @@ public class OpenCodeServer : IAsyncDisposable
             {
                 // The collector's promise is a final snapshot once disposal returns. The bounded
                 // drain lets the redirected readers reach end-of-stream (or its bound) before the
-                // collection closes; ownership is unchanged - the child was ended above, and a
-                // drain that cannot finish inside its bound leaves an honest, possibly
-                // incomplete, tail.
-                _ = await FlushOutputDrainAsync(_process).ConfigureAwait(false);
-                _output.Complete();
+                // collection closes; the child was ended above, and a drain that cannot finish
+                // inside its bound leaves an honest, possibly incomplete, tail.
+                _ = await _pump.DrainAsync(DrainTimeout).ConfigureAwait(false);
             }
+
+            // Every reader ends before the process is released, collector or not: a read still
+            // waiting for end-of-stream (a descendant holding the pipe) is canceled here.
+            await _pump.ReleaseAsync().ConfigureAwait(false);
+            _output?.Complete();
         }
         finally
         {
@@ -440,49 +460,47 @@ public class OpenCodeServer : IAsyncDisposable
         }
     }
 
-    private static void AttachOutputHandlers(
-        Process process,
+    private static (Action<string> StandardOutput, Action<string> StandardError) CreateOutputHandlers(
         TaskCompletionSource<string> readyLine,
         object stderrGate,
         Queue<string> stderrTail,
         OpenCodeServerOutput? output)
     {
-        process.OutputDataReceived += (_, received) =>
+        // Continuous drain: the first stdout line is the readiness contract; every later stdout
+        // write is read and, unless a collector retains it, dropped so a chatty server can never
+        // fill the pipe and wedge the probe (the reference keeps draining too, in standalone.ts).
+        // The collector's append takes only its own bounded-data lock.
+        void OnStandardOutput(string line)
         {
-            // Continuous drain: the first line is the readiness contract; every later stdout
-            // write is read and, unless a collector retains it, dropped so a chatty server can
-            // never fill the pipe and wedge the probe (the reference keeps draining too, in
-            // standalone.ts). The collector's append takes only its own bounded-data lock.
-            if (received.Data is not null)
-            {
-                // Retain first, then signal: the readiness continuation can run the moment the
-                // result is set, and a snapshot taken right after StartAsync returns must
-                // already hold the line that made it return.
-                output?.AppendStandardOutput(received.Data);
-                readyLine.TrySetResult(received.Data);
-            }
-        };
-        process.ErrorDataReceived += (_, received) =>
-        {
-            if (received.Data is null)
-            {
-                return;
-            }
+            // Retain first, then signal: the readiness continuation can run the moment the
+            // result is set, and a snapshot taken right after StartAsync returns must already
+            // hold the line that made it return.
+            output?.AppendStandardOutput(line);
+            _ = readyLine.TrySetResult(line);
+        }
 
+        void OnStandardError(string line)
+        {
             lock (stderrGate)
             {
-                stderrTail.Enqueue(received.Data);
+                stderrTail.Enqueue(line);
                 if (stderrTail.Count > StderrRetainedLines)
                 {
-                    stderrTail.Dequeue();
+                    _ = stderrTail.Dequeue();
                 }
             }
 
-            output?.AppendStandardError(received.Data);
-        };
+            output?.AppendStandardError(line);
+        }
+
+        return (OnStandardOutput, OnStandardError);
     }
 
-    private static void StartChildProcess(Process process, ResolvedExecutable executable)
+    private static ChildOutputPump StartChildProcess(
+        Process process,
+        ResolvedExecutable executable,
+        Action<string> onStandardOutput,
+        Action<string> onStandardError)
     {
         try
         {
@@ -495,12 +513,12 @@ public class OpenCodeServer : IAsyncDisposable
                 exception);
         }
 
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
+        return ChildOutputPump.Start(process, onStandardOutput, onStandardError);
     }
 
     private static async Task<string> WaitForReadyLineAsync(
         Process process,
+        ChildOutputPump pump,
         TaskCompletionSource<string> readyLine,
         TimeSpan readinessTimeout,
         object stderrGate,
@@ -516,7 +534,7 @@ public class OpenCodeServer : IAsyncDisposable
         }
         catch (OperationCanceledException exception)
         {
-            _ = await EndStartupFailureAsync(process).ConfigureAwait(false);
+            _ = await EndStartupFailureAsync(process, pump).ConfigureAwait(false);
             if (cancellationToken.IsCancellationRequested)
             {
                 throw new OperationCanceledException("The server start was canceled.", exception, cancellationToken);
@@ -540,7 +558,7 @@ public class OpenCodeServer : IAsyncDisposable
         // still a tree to end, and whether the drain reached EOF inside its bound, change nothing
         // about what this failure reports.
         _ = ProcessTreeTerminator.TryKill(process);
-        _ = await FlushOutputDrainAsync(process).ConfigureAwait(false);
+        _ = await pump.DrainAsync(DrainTimeout).ConfigureAwait(false);
         throw new OpenCodeServerException(
             $"The server exited with code {exitCode.ToString(CultureInfo.InvariantCulture)} before reporting readiness.{DescribeStderr(stderrGate, stderrTail)}");
     }
@@ -637,7 +655,7 @@ public class OpenCodeServer : IAsyncDisposable
     /// which is why every call site discards this: an incomplete tail is still the best evidence
     /// available, and there is no second attempt worth making on a process being abandoned.
     /// </returns>
-    private static async Task<bool> EndStartupFailureAsync(Process process)
+    private static async Task<bool> EndStartupFailureAsync(Process process, ChildOutputPump pump)
     {
         _ = ProcessTreeTerminator.TryKill(process);
         try
@@ -649,7 +667,7 @@ public class OpenCodeServer : IAsyncDisposable
                 return false;
             }
 
-            return await FlushOutputDrainAsync(process).ConfigureAwait(false);
+            return await pump.DrainAsync(DrainTimeout).ConfigureAwait(false);
         }
         catch (InvalidOperationException)
         {
@@ -660,44 +678,6 @@ public class OpenCodeServer : IAsyncDisposable
         catch (Win32Exception)
         {
             // The handle is gone or inaccessible; the outer disposal releases what remains.
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Drains the redirected output readers to EOF so the stderr tail a failure message quotes is
-    /// complete, bounded by <see cref="DrainTimeout"/>. The parameterless
-    /// <see cref="Process.WaitForExit()"/> is what actually performs the drain — Polyfill's
-    /// downlevel <c>WaitForExitAsync</c> is Exited-event-only and the int-timeout overload of
-    /// <c>WaitForExit</c> never drains either — but EOF on the redirected pipes arrives only when
-    /// every process holding the write end closes it. The immediate child having already exited
-    /// does not guarantee that: a launcher shim can leave live grandchildren holding those handles
-    /// open, which would make an unbounded call here hang forever. The bound below is the
-    /// guarantee instead; diagnostics are best-effort and never outrank returning to the caller.
-    /// </summary>
-    /// <returns>True when the drain reached EOF inside its bound; false when it did not.</returns>
-    private static Task<bool> FlushOutputDrainAsync(Process process) =>
-        BoundedDrain.RunAsync(() => WaitForExitBestEffort(process), DrainTimeout);
-
-    /// <summary>
-    /// The blocking half of the drain. Reports whether the redirected readers actually reached
-    /// EOF, so a caller quoting the captured tail knows whether it is complete.
-    /// </summary>
-    private static bool WaitForExitBestEffort(Process process)
-    {
-        try
-        {
-            process.WaitForExit();
-            return true;
-        }
-        catch (InvalidOperationException)
-        {
-            // No process handle left to drain; nothing this call can still flush.
-            return false;
-        }
-        catch (Win32Exception)
-        {
-            // The handle is gone or inaccessible, so the readers were never drained here.
             return false;
         }
     }

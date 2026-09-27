@@ -9,6 +9,17 @@ Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.9.0-nightly.{yyyyMMdd}.{shortSha}`.
 
+### 🐛 Fixes
+
+- **A standalone server no longer holds two thread-pool threads on Windows.** `Process` creates
+  the redirected stdout and stderr pipes synchronous there before .NET 11, and its event readers
+  blocked a pool thread on each for the server's whole life; with a few servers in one process the
+  pool starved, and unrelated async work stalled for seconds. The launcher now reads both streams
+  on dedicated threads on Windows, and disposal ends them: it waits for end-of-stream inside the
+  drain bound and cancels a read still blocked, so no reader outlives the server handle. That also
+  keeps the last lines of an exited child from missing the `OpenCodeServerOutput` snapshot under
+  load. Linux and macOS are unchanged.
+
 ## [0.9.0-preview.4] - 2026-09-27
 
 **Every operation upstream exposes is now callable: 100% coverage of the protocol surface.** At

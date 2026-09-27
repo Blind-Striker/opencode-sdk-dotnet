@@ -369,10 +369,17 @@ credential is injected into the child environment as `OPENCODE_PASSWORD`, after 
 child prints once fully booted; stdin stays open as the ownership lease for as long as the server
 runs, and every later stdout line plus all of stderr is drained continuously (stderr into a bounded
 tail kept for failure diagnostics) so a chatty child can never wedge the pipes. On Windows,
-`Process` creates those pipes synchronous before .NET 11, so each pending read holds a thread-pool
-thread for the server's life: two per standalone server. .NET 11's `Process` opens overlapped pipes
-(dotnet/runtime#125643), which removes the cost on that runtime with no SDK change; .NET Framework
-keeps it. The contender spawn does not pay it, because it creates its own stderr pipe (ADR-0027).
+`Process` creates those pipes synchronous before .NET 11 (dotnet/runtime#81896), so a pending read
+blocks the thread it runs on; `Process`'s own event readers would run those reads on thread-pool
+threads, two per standalone server for its whole life, and a host with several servers starves
+its pool. The launcher therefore reads each stream on a dedicated background thread on Windows
+(`ChildOutputReader`) and uses `Process`'s event readers elsewhere, where the reads are
+asynchronous and hold no thread. Every reader ends before the process is released: disposal and a
+failed start wait for end-of-stream inside the drain bound, then cancel any read still blocked —
+a descendant can keep a write end open — with `CancelSynchronousIo`, so no reader outlives its
+owner. .NET 11's `Process` opens the parent's read ends overlapped (dotnet/runtime#125643); a
+future .NET 11 target can read asynchronously on that runtime without a dedicated thread. The
+contender spawn creates its own overlapped stderr pipe instead (ADR-0027).
 
 `Command[0]` is resolved once per start, before the process is created, the way a shell resolves
 it, and the resolved path is what the process starts and what a failure names. A command carrying
