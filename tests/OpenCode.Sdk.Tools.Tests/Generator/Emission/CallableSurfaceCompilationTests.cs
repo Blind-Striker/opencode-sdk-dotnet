@@ -6,6 +6,7 @@ namespace OpenCode.Sdk.Tools.Tests.Generator.Emission;
 public sealed class CallableSurfaceCompilationTests
 {
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     public async Task Emit_Should_Produce_A_Compilable_Callable_Surface()
     {
         var sources = SourceEmitter.Emit(EmitterPlanFixture.Create());

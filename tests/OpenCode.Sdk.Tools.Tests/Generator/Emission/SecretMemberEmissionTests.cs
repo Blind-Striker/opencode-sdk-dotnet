@@ -24,6 +24,7 @@ public sealed class SecretMemberEmissionTests
     }
 
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     [Arguments("ExampleItem", "note", """{"id":"i","note":"hunter2","peak":1,"requiredNullable":null,"requiredTags":["a"]}""", "Note = hunter2")]
     [Arguments("ExampleItem", "note", """{"id":"i","peak":1,"requiredNullable":null,"requiredTags":[]}""", null)]
     [Arguments("OpenSettings", "timeout", """{"timeout":5,"extra":1}""", "Timeout = 5")]

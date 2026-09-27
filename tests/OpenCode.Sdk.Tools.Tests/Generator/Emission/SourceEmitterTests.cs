@@ -34,6 +34,7 @@ public sealed class SourceEmitterTests
     }
 
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     public async Task Emit_Should_Preserve_All_Bound_Union_And_Registry_Evidence_Through_Source_Generation_And_Compilation()
     {
         var plan = await new BindingTestHost().BindPinnedAsync();
@@ -132,6 +133,7 @@ public sealed class SourceEmitterTests
     }
 
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     public async Task Emit_Should_Deserialize_A_Shared_Pinned_Leaf_Through_Both_Stream_Interfaces()
     {
         var plan = await new BindingTestHost().BindPinnedAsync();
@@ -160,6 +162,7 @@ public sealed class SourceEmitterTests
     }
 
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     public async Task Emit_Should_Preserve_An_Unclaimed_Pinned_Structural_Token_As_Unknown()
     {
         var plan = await new BindingTestHost().BindPinnedAsync();

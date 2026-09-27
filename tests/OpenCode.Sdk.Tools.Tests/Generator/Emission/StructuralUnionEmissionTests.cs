@@ -8,6 +8,7 @@ namespace OpenCode.Sdk.Tools.Tests.Generator.Emission;
 public sealed class StructuralUnionEmissionTests
 {
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     public async Task Emit_Should_Source_Generate_And_Round_Trip_Every_Structural_Arm()
     {
         var sources = SourceEmitter.Emit(await EmitterPlanFixture.CreateStructuralUnionPlanAsync());
@@ -47,6 +48,7 @@ public sealed class StructuralUnionEmissionTests
     /// arm throws by design; the emitted PrintMembers prints the kind and the active arm only.
     /// </summary>
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     public async Task Emit_Should_Print_The_Active_Arm_Only()
     {
         var sources = SourceEmitter.Emit(await EmitterPlanFixture.CreateStructuralUnionPlanAsync());
@@ -77,6 +79,7 @@ public sealed class StructuralUnionEmissionTests
     }
 
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     public async Task Emit_Should_Refuse_Malformed_Claimed_Arms_And_Non_Finite_Constructed_Numbers()
     {
         var sources = SourceEmitter.Emit(await EmitterPlanFixture.CreateStructuralUnionPlanAsync());

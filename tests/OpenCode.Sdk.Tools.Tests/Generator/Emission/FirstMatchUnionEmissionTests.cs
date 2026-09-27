@@ -15,6 +15,7 @@ namespace OpenCode.Sdk.Tools.Tests.Generator.Emission;
 public sealed class FirstMatchUnionEmissionTests
 {
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     public async Task Emit_Should_Select_The_First_Object_Arm_Whose_Claim_Holds()
     {
         var assembly = await CompileAsync();
@@ -49,6 +50,7 @@ public sealed class FirstMatchUnionEmissionTests
     }
 
     [Test]
+    [ParallelLimiter<RoslynCompilationSlots>]
     public async Task Emit_Should_Refuse_A_Value_Whose_Claimed_Arm_Does_Not_Parse()
     {
         var assembly = await CompileAsync();
