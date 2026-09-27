@@ -22,7 +22,9 @@ The same operation answers `application/octet-stream` with a `string`/`format: b
 the document states directly, so its binding needs no second artifact: a raw-byte success binds a
 binary envelope that carries the buffered bytes as `Content` and the server's `Content-Type` as
 `ContentType` — the server serves the file's MIME type, which upstream's client drops — while the
-error statuses keep their JSON bodies and typed errors.
+error statuses keep their JSON bodies and typed errors. The same spelling as a required request
+body (`experimental.fs.write`) binds as the caller's `Stream`, sent unbuffered after a standalone
+query record, because the query cannot ride a body that is not a model.
 
 ## Considered options
 

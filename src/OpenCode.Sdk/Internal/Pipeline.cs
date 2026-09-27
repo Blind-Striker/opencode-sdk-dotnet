@@ -158,6 +158,19 @@ internal sealed class Pipeline : IDisposable
     }
 
     /// <summary>
+    /// The overload a generated method calls when its operation takes raw bytes: the caller's
+    /// stream is the body, sent as it is (<see cref="CallerStreamContent"/>).
+    /// </summary>
+    public Task<TResponse> ExecuteAsync<TResponse>(HttpMethod method, string route, Stream content,
+        ResponseAdapter<TResponse> adapter, OpenCodeRequestOptions? options, CancellationToken cancellationToken)
+        where TResponse : OpenCodeResponse
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        return ExecuteCoreAsync<object, TResponse>(method, route, body: null, bodyTypeInfo: null, adapter, options,
+            declaredHeaders: null, cancellationToken, content);
+    }
+
+    /// <summary>
     /// Opens a streaming operation: the status and content-type walls answer before the
     /// body is read, then each event frame's payload is yielded as it arrives. The
     /// one-shot buffer is never involved, and a stream always throws on an error status —
@@ -193,7 +206,7 @@ internal sealed class Pipeline : IDisposable
 
     private async Task<TResponse> ExecuteCoreAsync<TBody, TResponse>(HttpMethod method, string route, TBody? body,
         JsonTypeInfo<TBody>? bodyTypeInfo, ResponseAdapter<TResponse> adapter, OpenCodeRequestOptions? options,
-        IReadOnlyList<DeclaredHeader>? declaredHeaders, CancellationToken cancellationToken)
+        IReadOnlyList<DeclaredHeader>? declaredHeaders, CancellationToken cancellationToken, Stream? content = null)
         where TBody : class
         where TResponse : OpenCodeResponse
     {
@@ -217,6 +230,11 @@ internal sealed class Pipeline : IDisposable
         TResponse adapted;
         using (var message = CreateMessage(method, route, body, bodyTypeInfo, options?.Location, declaredHeaders, cancellationToken))
         {
+            if (content is not null)
+            {
+                message.Request.Content = new CallerStreamContent(content, message);
+            }
+
             await SendThroughPoliciesAsync(message).ConfigureAwait(false);
             adapted = ResponseMaterializer.Materialize(message, adapter);
         }

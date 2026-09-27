@@ -372,7 +372,9 @@ internal sealed class OperationPlanBinder
         {
             var queryRequest = new QueryRequestFacetBinder(_context).Bind();
             var requestBody = new RequestBodyFacetBinder(_context).Bind();
-            if (queryRequest is null || requestBody is null)
+            // A raw-byte body is the caller's stream, not a model the query can ride, so its
+            // query parameters keep their own request record beside it.
+            if (queryRequest is null || requestBody is null || requestBody.IsBinary)
             {
                 return (queryRequest, requestBody);
             }

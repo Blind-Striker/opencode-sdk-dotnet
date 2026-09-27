@@ -13,6 +13,7 @@ public sealed class FileSystemClientLiveTests(SimulatedDriveServerFixture server
     private const string ChildDirectory = "sdk-live-child";
     private const string ChildFile = "sdk-live-child/sdk-live-find-target.txt";
     private const string RootFile = "sdk-live-root-file.txt";
+    private const string WriteTarget = "sdk-live-written/nested/blob.bin";
     private const string ReadTarget = "sdk live read/über notes #1.txt";
 
     [Test]
@@ -92,6 +93,40 @@ public sealed class FileSystemClientLiveTests(SimulatedDriveServerFixture server
             " bytes=" + Number(read.Content.Length) +
             " content-type=" + read.ContentType +
             " missing-status=" + Number(missing.Status));
+    }
+
+    /// <summary>
+    /// The write takes the caller's stream as the body and answers the resolved absolute path; the
+    /// read of the same relative path returns the same bytes, and the file on disk holds them. The
+    /// target is relative to an owned workspace, because a write is not confined to the location.
+    /// </summary>
+    [Test]
+    [Timeout(60_000)]
+    public async Task WriteFileAsync_Should_Write_Bytes_That_ReadFileAsync_Reads_Back(CancellationToken cancellationToken)
+    {
+        using var workspace = server.CreateWorkspace();
+        using var client = server.CreateClient(new LocationSelector { Directory = workspace.Path });
+        byte[] bytes = [.. Encoding.UTF8.GetBytes("sdk live write " + Guid.NewGuid().ToString("N")), 0x00, 0xFF, 0xFE];
+        using var source = new MemoryStream(bytes);
+
+        var written = await client.Experimental.WriteFileAsync(
+            new ExperimentalFsWriteRequest { Path = WriteTarget },
+            source,
+            cancellationToken: cancellationToken);
+
+        await Assert.That(written.Status).IsEqualTo(200);
+        await Assert.That(NormalizeSeparators(written.File.Path)).EndsWith(WriteTarget);
+        await Assert.That(source.Position).IsEqualTo(bytes.Length);
+
+        var read = await client.FileSystem.ReadFileAsync(new FsReadRequest { Path = WriteTarget }, cancellationToken: cancellationToken);
+
+        await Assert.That(read.Content.ToArray()).IsEquivalentTo(bytes);
+        await Assert.That(workspace.HasBytes(WriteTarget, bytes)).IsTrue();
+
+        Console.WriteLine(
+            "filesystem-live: write-status=" + Number(written.Status) +
+            " bytes=" + Number(bytes.Length) +
+            " read-back=" + Number(read.Content.Length));
     }
 
     /// <summary>

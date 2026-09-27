@@ -99,6 +99,11 @@ internal static class ClientEmitter
             usings.Add("OpenCode.Sdk.Internal.StreamAdapters");
         }
 
+        if (client.Operations.Any(static operation => operation.RequestBody is { IsBinary: true }))
+        {
+            usings.Add("System.IO");
+        }
+
         if (client.Operations.Any(static operation => operation.Pagination is not null))
         {
             usings.Add("OpenCode.Sdk.Internal.Pagination");

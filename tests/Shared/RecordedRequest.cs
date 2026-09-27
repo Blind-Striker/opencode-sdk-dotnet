@@ -16,4 +16,10 @@ internal sealed record RecordedRequest
     public string? ContentType { get; init; }
 
     public string? Body { get; init; }
+
+    /// <summary>Gets the raw request body, or null when the request carried none.</summary>
+    public IReadOnlyList<byte>? BodyBytes { get; init; }
+
+    /// <summary>Gets the Content-Length the content declared before it was buffered; null when it declared none.</summary>
+    public long? ContentLength { get; init; }
 }

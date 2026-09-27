@@ -16,6 +16,12 @@ internal sealed class RequestBodyFacetBinder(OperationFacetContext context)
             return null;
         }
 
+        if (body.ContentType is { Stripped: "application/octet-stream" }
+            && _context.Resolve(body.Schema) is PrimitiveNode { Kind: PrimitiveKind.String, Format: "binary" })
+        {
+            return BindBinary(body);
+        }
+
         if (body.ContentType is not { IsJson: true })
         {
             _context.Refuse("the request body must carry a JSON schema");
@@ -57,6 +63,28 @@ internal sealed class RequestBodyFacetBinder(OperationFacetContext context)
             TypeName = typeName,
             ParameterName = "request",
             IsOptional = target.Properties.All(static property => !property.IsRequired),
+        };
+    }
+
+    /// <summary>
+    /// A raw-byte body the document spells as <c>application/octet-stream</c> with a
+    /// <c>string</c>/<c>binary</c> schema: the caller's stream, sent as it is (ADR-0029). A body the
+    /// document leaves optional would need a bodiless overload nothing on the pin asks for.
+    /// </summary>
+    private RequestBodyPlan? BindBinary(SpecRequestBody body)
+    {
+        if (!body.IsRequired)
+        {
+            _context.Refuse("the request body must be declared required");
+            return null;
+        }
+
+        return new RequestBodyPlan
+        {
+            TypeName = "Stream",
+            ParameterName = "content",
+            IsOptional = false,
+            IsBinary = true,
         };
     }
 }

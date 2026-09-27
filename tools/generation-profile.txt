@@ -10,6 +10,7 @@ debug.location.evict
 debug.location.list
 event.subscribe
 experimental.config.update
+experimental.fs.write
 experimental.generate.text
 experimental.integration.wellknown.add
 experimental.mcp.add
