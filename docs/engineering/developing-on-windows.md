@@ -60,8 +60,8 @@ initialization by name rather than reaching the server.
 The exact-pin discipline is the operator's: the WSL2 server must be built from the same submodule
 commit; the fixture prints both so a mismatch is visible, it cannot verify a source run's version.
 
-The sandbox (`tests/OpenCode.Sdk.Sandbox`) can be pointed at the same endpoint, but it is not the
-proof: its earlier session legs answer 500 on a provider-less isolated server, so the walkthrough
+The sandbox (`tests/OpenCode.Sdk.Sandbox`) can be pointed at the same endpoint with `--endpoint`,
+but it is not the proof: its earlier session legs answer 500 on a provider-less isolated server, so the walkthrough
 never reaches the persistent PTY leg there. `PersistentPtyLiveTests` is what proves the round trip.
 
 ## Driving WSL from a Windows shell

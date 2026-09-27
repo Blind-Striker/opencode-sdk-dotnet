@@ -1,20 +1,19 @@
 {
   "profiles": {
+    "sandbox-walkthrough": {
+      "commandName": "Project"
+    },
     "sandbox-session-log": {
       "commandName": "Project",
-      "commandLineArgs": "--stream",
-      "environmentVariables": {
-        "OPENCODE_SANDBOX_ENDPOINT": "http://127.0.0.1:4096",
-        "OPENCODE_PASSWORD": "123456"
-      }
+      "commandLineArgs": "--stream"
     },
     "sandbox-events": {
       "commandName": "Project",
-      "commandLineArgs": "--events",
-      "environmentVariables": {
-        "OPENCODE_SANDBOX_ENDPOINT": "http://127.0.0.1:4096",
-        "OPENCODE_PASSWORD": "123456"
-      }
+      "commandLineArgs": "--events"
+    },
+    "sandbox-standalone": {
+      "commandName": "Project",
+      "commandLineArgs": "--standalone"
     }
   }
 }

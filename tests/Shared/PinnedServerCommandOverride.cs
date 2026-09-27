@@ -8,9 +8,8 @@ namespace OpenCode.Sdk.TestSupport;
 /// <c>@opencode/cli</c> build with <c>opencode|serve</c>.
 /// </summary>
 /// <remarks>
-/// The value is <c>|</c>-separated rather than space-separated so a path with spaces survives,
-/// which is the convention <c>OPENCODE_SANDBOX_SERVER_COMMAND</c> already established
-/// (<c>tests/OpenCode.Sdk.Sandbox/StandaloneServerWalkthrough.cs</c>). Tokens are handed to the
+/// The value is <c>|</c>-separated rather than space-separated so a path with spaces survives.
+/// Tokens are handed to the
 /// launcher exactly as written: resolving the executable from <c>PATH</c> (with <c>PATHEXT</c> on
 /// Windows, which is what starts an npm <c>.cmd</c> shim) is the shipped launcher's job, not this
 /// type's, so a bare <c>opencode</c> is a correct value and is never probed here.

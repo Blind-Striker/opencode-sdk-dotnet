@@ -1,8 +1,12 @@
 using OpenCode.Sdk.Sandbox;
 
-if (args.Contains("--standalone", StringComparer.Ordinal))
+var arguments = SandboxArguments.Parse(args);
+if (arguments is null)
 {
-    return await StandaloneServerWalkthrough.RunAsync().ConfigureAwait(false);
+    await Console.Error.WriteLineAsync(SandboxArguments.Usage).ConfigureAwait(false);
+    return 1;
 }
 
-return await SandboxRunner.RunAsync(args).ConfigureAwait(false);
+return arguments.Mode is SandboxMode.Standalone
+    ? await StandaloneServerWalkthrough.RunAsync().ConfigureAwait(false)
+    : await SandboxRunner.RunAsync(arguments).ConfigureAwait(false);
