@@ -9,6 +9,8 @@ Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.9.0-nightly.{yyyyMMdd}.{shortSha}`.
 
+## [0.9.0-preview.4] - 2026-09-27
+
 **Every operation upstream exposes is now callable: 100% coverage of the protocol surface.** At
 upstream release tag `v2.0.18`, all 138 operations in the pinned document are usable — 136
 generated and the two terminal WebSocket transports — and none is declined. `0.9.0-preview.3`
@@ -702,6 +704,7 @@ migration to perform, because no earlier version was ever published.
 - **Pre-1.0 API.** The public surface is locked by a reviewed baseline, but it may still move
   before `1.0.0`. Breaking changes will be called out here with impact and migration path.
 
+[0.9.0-preview.4]: https://github.com/Blind-Striker/opencode-sdk-dotnet/releases/tag/v0.9.0-preview.4
 [0.9.0-preview.3]: https://github.com/Blind-Striker/opencode-sdk-dotnet/releases/tag/v0.9.0-preview.3
 [0.9.0-preview.2]: https://github.com/Blind-Striker/opencode-sdk-dotnet/releases/tag/v0.9.0-preview.2
 [0.9.0-preview.1]: https://github.com/Blind-Striker/opencode-sdk-dotnet/releases/tag/v0.9.0-preview.1
