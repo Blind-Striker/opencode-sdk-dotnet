@@ -17,6 +17,11 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
             return BindNoContentEnvelope(success);
         }
 
+        if (IsBinary(success))
+        {
+            return BindBinaryEnvelope();
+        }
+
         if (success.ContentType is not { IsJson: true } || success.Schema is null)
         {
             _context.Refuse("the success response must carry a JSON schema");
@@ -64,15 +69,7 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
             return null;
         }
 
-        var kind = success.EnvelopeShape switch
-        {
-            // A single-key body reads exactly like a data wrapper once the DTO carries its key.
-            SpecEnvelopeShape.Data or SpecEnvelopeShape.SingleKey => EnvelopeKind.Data,
-            SpecEnvelopeShape.CursorData => EnvelopeKind.CursorList,
-            SpecEnvelopeShape.DataLocation => DataLocationKind(success.Schema),
-            SpecEnvelopeShape.Bare or SpecEnvelopeShape.None
-                or SpecEnvelopeShape.DataHasMore or _ => EnvelopeKind.Bare,
-        };
+        var kind = KindOf(success);
         return new EnvelopePlan
         {
             ResponseTypeName = responseTypeName,
@@ -84,6 +81,49 @@ internal sealed class EnvelopeFacetBinder(OperationFacetContext context)
             SuccessStatusCode = 200,
             EnvelopeDtoTypeName = kind is EnvelopeKind.Bare ? null : $"{responseTypeName}Envelope",
             LocationTypeName = locationTypeName,
+        };
+    }
+
+    private EnvelopeKind KindOf(SpecResponse success) => success.EnvelopeShape switch
+    {
+        // A single-key body reads exactly like a data wrapper once the DTO carries its key.
+        SpecEnvelopeShape.Data or SpecEnvelopeShape.SingleKey => EnvelopeKind.Data,
+        SpecEnvelopeShape.CursorData => EnvelopeKind.CursorList,
+        SpecEnvelopeShape.DataLocation => DataLocationKind(success.Schema!),
+        SpecEnvelopeShape.Bare or SpecEnvelopeShape.None
+            or SpecEnvelopeShape.DataHasMore or _ => EnvelopeKind.Bare,
+    };
+
+    /// <summary>
+    /// An <c>application/octet-stream</c> success whose schema is <c>string</c> with
+    /// <c>format: binary</c>: the document's own spelling of raw bytes, the only binary vocabulary
+    /// the binder admits (ADR-0029).
+    /// </summary>
+    private bool IsBinary(SpecResponse success) =>
+        success.ContentType is { Stripped: "application/octet-stream" }
+        && success.Schema is not null
+        && _context.Resolve(success.Schema) is PrimitiveNode { Kind: PrimitiveKind.String, Format: "binary" };
+
+    /// <summary>
+    /// The envelope of a raw-byte success: the bytes as <c>Content</c> and the server's
+    /// <c>Content-Type</c> beside them; nothing reaches the serializer, and error statuses keep
+    /// their JSON bodies.
+    /// </summary>
+    private EnvelopePlan BindBinaryEnvelope()
+    {
+        var responseTypeName = OperationNamePolicy.ResponseTypeName(_context.Operation);
+        return new EnvelopePlan
+        {
+            ResponseTypeName = responseTypeName,
+            AdapterTypeName = $"{responseTypeName}Adapter",
+            PayloadName = "Content",
+            PayloadType = new BinaryTypeReferencePlan
+            {
+                IsNullable = false,
+                JsonNullRepresentation = JsonNullRepresentation.ClrNull,
+            },
+            Kind = EnvelopeKind.Binary,
+            SuccessStatusCode = 200,
         };
     }
 

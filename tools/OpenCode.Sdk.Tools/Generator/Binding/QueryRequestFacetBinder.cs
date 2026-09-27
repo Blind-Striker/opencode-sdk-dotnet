@@ -11,12 +11,17 @@ internal sealed class QueryRequestFacetBinder(OperationFacetContext context)
     public QueryRequestPlan? Bind()
     {
         var query = _context.Operation.Parameters.Where(static parameter => parameter.Location is SpecParameterLocation.Query).ToArray();
-        if (query.Length is 0)
+        if (query.Length is 0 && !_context.Operation.HasWildcardPath)
         {
             return null;
         }
 
-        var properties = new List<QueryPropertyPlan>(query.Length);
+        var properties = new List<QueryPropertyPlan>(query.Length + 1);
+        if (_context.Operation.HasWildcardPath)
+        {
+            properties.Add(BindRouteTail(_context.Operation.Parameters));
+        }
+
         foreach (var parameter in query)
         {
             var property = parameter.IsDeepObject ? BindLocationSelector(parameter) : BindValue(parameter);
@@ -57,6 +62,28 @@ internal sealed class QueryRequestFacetBinder(OperationFacetContext context)
             TypeName = OperationNamePolicy.RequestTypeName(_context.Operation),
             DerivesFromListRequest = derivesFromListRequest,
             Properties = properties,
+        };
+    }
+
+    /// <summary>
+    /// Binds the trailing wildcard the way upstream's own codegen does (<c>promiseWildcardInput</c>):
+    /// a required string input named <c>path</c>, or <c>wildcard</c> when a declared parameter
+    /// already takes <c>path</c>. The document declares no parameter for it; upstream's pinned
+    /// codegen is the second protocol artifact that names it (ADR-0029).
+    /// </summary>
+    private static QueryPropertyPlan BindRouteTail(IReadOnlyList<SpecParameter> parameters)
+    {
+        var wireName = parameters.Any(static parameter => string.Equals(parameter.Name, "path", StringComparison.Ordinal))
+            ? "wildcard"
+            : "path";
+        return new QueryPropertyPlan
+        {
+            WireName = wireName,
+            PropertyName = CSharpNamePolicy.ToPascalCase(wireName),
+            Kind = QueryValueKind.RouteTail,
+            Description = "Gets the path the route's trailing wildcard carries; each '/'-separated segment is escaped as upstream's client escapes it.",
+            IsRequired = true,
+            IsInherited = false,
         };
     }
 

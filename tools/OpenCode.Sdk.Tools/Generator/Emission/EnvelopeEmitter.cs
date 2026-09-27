@@ -44,7 +44,7 @@ internal static class EnvelopeEmitter
             EnvelopeKind.NoContent => ["System.Diagnostics.CodeAnalysis", "OpenCode.Sdk.Models"],
             EnvelopeKind.CursorList or EnvelopeKind.DataLocationList =>
                 ["System", "System.Diagnostics.CodeAnalysis", "System.Text", "OpenCode.Sdk.Models"],
-            EnvelopeKind.Bare or EnvelopeKind.Data or EnvelopeKind.DataLocation or _ =>
+            EnvelopeKind.Bare or EnvelopeKind.Data or EnvelopeKind.DataLocation or EnvelopeKind.Binary or _ =>
                 ["System", "System.Diagnostics.CodeAnalysis", "System.Text", "OpenCode.Sdk.Models"],
         };
         var unit = EmissionSyntax.CompilationUnit("OpenCode.Sdk", usings, [declaration]);
@@ -96,6 +96,11 @@ internal static class EnvelopeEmitter
             members.Add(EmitLocationProperty(envelope.LocationTypeName));
         }
 
+        if (envelope.Kind is EnvelopeKind.Binary)
+        {
+            members.Add(EmitContentTypeProperty());
+        }
+
         members.Add(EmitPrintMembers(envelope, payloadName, fieldName));
         return members;
     }
@@ -137,7 +142,9 @@ internal static class EnvelopeEmitter
         // makes the null unobservable. A no-content envelope has no payload to forgive. A
         // nullable payload's property is already typed to accept null, so no suppression is
         // needed there — the response-state guard, not the field, is what makes it unobservable.
-        if (envelope.PayloadName is not null)
+        // A binary payload is a value type: its nullable backing field is already null, and a
+        // null cannot be assigned to the property.
+        if (envelope.PayloadName is not null && envelope.Kind is not EnvelopeKind.Binary)
         {
             ExpressionSyntax nullValue = envelope.PayloadType!.IsNullable
                 ? SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)
@@ -206,6 +213,21 @@ internal static class EnvelopeEmitter
             "_location",
             SyntaxFactory.IdentifierName("value"),
             "Gets the location the server resolved for the request; guarded on the error path.");
+
+    private static PropertyDeclarationSyntax EmitContentTypeProperty() =>
+        SyntaxFactory.PropertyDeclaration(
+                SyntaxFactory.NullableType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword))),
+                "ContentType")
+            .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
+            .WithAccessorList(SyntaxFactory.AccessorList(SyntaxFactory.List(
+            [
+                SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
+                SyntaxFactory.AccessorDeclaration(SyntaxKind.InitAccessorDeclaration)
+                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
+            ])))
+            .WithLeadingTrivia(EmissionSyntax.Documentation(
+                "Gets the Content-Type the server declared for the bytes, or null when it declared none or the response is an error."));
 
     private static PropertyDeclarationSyntax EmitGuardedProperty(TypeSyntax propertyType, string propertyName,
         string fieldName, ExpressionSyntax initValue, string documentation)
@@ -309,6 +331,19 @@ internal static class EnvelopeEmitter
                         SyntaxFactory.Literal($"{payloadName} = ")))),
                 "Append"),
             SyntaxFactory.Argument(payloadField))));
+        if (envelope.Kind is EnvelopeKind.Binary)
+        {
+            statements.Add(Discard(EmissionSyntax.Invocation(
+                EmissionSyntax.MemberAccess(
+                    EmissionSyntax.Invocation(
+                        EmissionSyntax.MemberAccess(builder, "Append"),
+                        SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
+                            SyntaxKind.StringLiteralExpression,
+                            SyntaxFactory.Literal(", ContentType = ")))),
+                    "Append"),
+                SyntaxFactory.Argument(SyntaxFactory.IdentifierName("ContentType")))));
+        }
+
         statements.Add(SyntaxFactory.ReturnStatement(SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression)));
         return SyntaxFactory.MethodDeclaration(
                 SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.BoolKeyword)),

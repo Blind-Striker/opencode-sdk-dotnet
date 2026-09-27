@@ -28,6 +28,7 @@ experimental.session.wait
 form.list
 fs.find
 fs.list
+fs.read
 integration.command.cancel
 integration.command.connect
 integration.command.status

@@ -20,6 +20,12 @@ Nightly builds of `master` are on
 - **`client.Experimental.GetMigrationV1StatusAsync()`** (`experimental.migration.v1.status`)
   returns the V1 session-history migration status: `ExperimentalMigrationV1StatusIdle`
   (`Required` or `Completed`), `…Running` with its progress, or `…Error`.
+- **Files can be read.** `client.FileSystem.ReadFileAsync(new FsReadRequest { Path = … })`
+  (`fs.read`) returns the file's bytes as `Content` (`ReadOnlyMemory<byte>`) and the MIME type the
+  server declared as `ContentType`. `Path` is relative to the location and may be nested; the SDK
+  escapes each segment as upstream's own client does and refuses `.` and `..` segments. A missing
+  file is the declared 404 `FileNotFoundError`; a path that leaves the location is refused by the
+  server.
 - **Unions of objects without a discriminator are typed.** A structural union carrier whose object
   members share the JSON object token now selects a member the way upstream's decoder does: the
   first member in declaration order whose required keys are present and whose literal-constrained

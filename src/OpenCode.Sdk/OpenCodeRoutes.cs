@@ -614,6 +614,24 @@ public static class OpenCodeRoutes
             query.AddText("path", request.Path);
             return path + query.Value;
         }
+
+        /// <summary>
+        /// The &apos;GET /api/fs/read/*&apos; route template.
+        /// </summary>
+        public const string ReadFileTemplate = "/api/fs/read/*";
+        /// <summary>
+        /// Builds the &apos;/api/fs/read/*&apos; route.
+        /// </summary>
+        /// <param name = "request">The request shaping the query.</param>
+        /// <returns>The escaped route.</returns>
+        public static string ReadFile(FsReadRequest request)
+        {
+            ArgumentNullException.ThrowIfNull(request);
+            var path = "/api/fs/read/" + RouteValuePolicy.EscapeTail(request.Path, nameof(request));
+            var query = new QueryStringBuilder();
+            query.AddLocation("location", request.Location);
+            return path + query.Value;
+        }
     }
 
     /// <summary>

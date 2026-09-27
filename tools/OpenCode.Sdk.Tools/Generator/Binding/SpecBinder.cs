@@ -204,7 +204,13 @@ internal sealed class SpecBinder(
         var payloadEntries = clients
             .SelectMany(static client => client.Operations)
             .Select(static operation => operation.Envelope)
-            .Where(static envelope => envelope is { EnvelopeDtoTypeName: null, PayloadType: not null and not NamedTypeReferencePlan })
+            .Where(static envelope => envelope is
+            {
+                EnvelopeDtoTypeName: null,
+                PayloadType: not null and not NamedTypeReferencePlan,
+                // Raw bytes never reach the serializer.
+                Kind: not EnvelopeKind.Binary,
+            })
             .Select(static envelope => envelope!.PayloadType!);
         return new RegistryPlan
         {

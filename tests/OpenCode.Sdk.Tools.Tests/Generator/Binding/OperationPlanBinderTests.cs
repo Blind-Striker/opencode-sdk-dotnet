@@ -242,9 +242,9 @@ public sealed class OperationPlanBinderTests
     }
 
     /// <summary>
-    /// The committed curation's declined rows against the pinned spec: the two operations a
+    /// The committed curation's declined row against the pinned spec: the operation a
     /// standing wall refuses and the maintainer decided to leave out of the released surface. With
-    /// them out of the pending set the pinned profile reaches pending = 0, which is what opens the
+    /// it out of the pending set the pinned profile reaches pending = 0, which is what opens the
     /// packing wall — so a row added, dropped, or reordered must fail here rather than drift.
     /// </summary>
     [Test]
@@ -256,7 +256,7 @@ public sealed class OperationPlanBinderTests
             .That(plan
                 .DeclinedOperations.Select(static operation => operation.OperationId)
                 .SequenceEqual(
-                    ["experimental.fs.write", "fs.read"],
+                    ["experimental.fs.write"],
                     StringComparer.Ordinal))
             .IsTrue();
         await Assert.That(plan.DeclinedOperations.All(static operation => operation.Reason.Length > 0)).IsTrue();
@@ -2779,17 +2779,61 @@ public sealed class OperationPlanBinderTests
         await Assert.That(plan.Registry.TypeNames).Contains("IStreamFailureCause[]");
     }
 
+    /// <summary>
+    /// Upstream's codegen rule (<c>promiseWildcardInput</c>): the trailing wildcard becomes a
+    /// required string input named <c>path</c>, first among the inputs, and a raw-byte success
+    /// binds the binary envelope.
+    /// </summary>
     [Test]
-    public async Task Bind_Should_Refuse_A_Wildcard_Path()
+    public async Task Bind_Should_Carry_A_Trailing_Wildcard_As_A_Required_Path_Member()
     {
         var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
-            .WithSchema("ItemInfo", schema => schema
-                .Type("object")
-                .Property("id", property => property.Type("string"), required: true))
-            .WithOperation("health.get", path: "/api/health/*", configure: operation => operation
-                .Response(200, "application/json", schema => schema.Ref("ItemInfo")))));
+            .WithOperation("blob.read", path: "/api/blob/read/*", configure: operation => operation
+                .Parameter("location", "query", QueryScenarioData.NullableLocationSelector, deepObject: true)
+                .Response(200, "application/octet-stream", schema => schema.Type("string").Format("binary")))));
 
-        await AssertOperationRefusalAsync(document, "health.get", "wildcard");
+        var operation = new BindingTestHost()
+            .Bind(document, Selection("blob.read"), Curation(Groups("blob", RootGroup())))
+            .Clients.SelectMany(static client => client.Operations)
+            .Single();
+
+        var tail = operation.QueryRequest!.Properties[0];
+        await Assert.That(tail.WireName).IsEqualTo("path");
+        await Assert.That(tail.PropertyName).IsEqualTo("Path");
+        await Assert.That(tail.Kind).IsEqualTo(QueryValueKind.RouteTail);
+        await Assert.That(tail.IsRequired).IsTrue();
+        await Assert.That(operation.QueryRequest.Properties[1].Kind).IsEqualTo(QueryValueKind.Location);
+        await Assert.That(operation.Envelope!.Kind).IsEqualTo(EnvelopeKind.Binary);
+        await Assert.That(operation.Envelope.PayloadName).IsEqualTo("Content");
+        await Assert.That(operation.Envelope.PayloadType).IsTypeOf<BinaryTypeReferencePlan>();
+    }
+
+    [Test]
+    public async Task Bind_Should_Name_The_Route_Tail_Wildcard_When_A_Path_Query_Exists()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("blob.read", path: "/api/blob/read/*", configure: operation => operation
+                .Parameter("path", "query", schema => schema.Type("string"))
+                .Response(200, "application/octet-stream", schema => schema.Type("string").Format("binary")))));
+
+        var operation = new BindingTestHost()
+            .Bind(document, Selection("blob.read"), Curation(Groups("blob", RootGroup())))
+            .Clients.SelectMany(static client => client.Operations)
+            .Single();
+
+        await Assert
+            .That(operation.QueryRequest!.Properties.Select(static property => $"{property.PropertyName}:{property.Kind}"))
+            .IsEquivalentTo(["Wildcard:RouteTail", "Path:Text"]);
+    }
+
+    [Test]
+    public async Task Bind_Should_Refuse_An_Octet_Stream_Success_That_Is_Not_Binary()
+    {
+        var document = await BindingTestHost.IngestAsync(SpecScenario.Define(spec => spec
+            .WithOperation("health.get", configure: operation => operation
+                .Response(200, "application/octet-stream", schema => schema.Type("string")))));
+
+        await AssertOperationRefusalAsync(document, "health.get", "the success response must carry a JSON schema");
     }
 
     [Test]

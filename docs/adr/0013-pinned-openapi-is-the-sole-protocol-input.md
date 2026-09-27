@@ -9,7 +9,9 @@ a second contract, require executing or reimplementing upstream's schema runtime
 internal refactor look like HTTP drift. A construct the OpenAPI projection cannot represent stays
 faithful to the document or fails closed; it is not silently repaired from implementation source.
 The pinned document itself is produced through the receipt-governed snapshot process (ADR-0020);
-this record governs what generation consumes from it.
+this record governs what generation consumes from it. ADR-0029 adopts one bounded second artifact
+under this record's reversal trigger: upstream's pinned codegen rule for the input a
+trailing-wildcard route carries, mirrored rather than read and guarded by the source watch.
 
 Curation may choose .NET names and placement, collapse OpenAPI shapes proven equivalent,
 fingerprint exclusions already evidenced by the document, and map an operation whose upstream

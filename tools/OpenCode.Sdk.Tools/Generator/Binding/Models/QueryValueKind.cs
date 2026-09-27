@@ -20,4 +20,10 @@ internal enum QueryValueKind
 
     /// <summary>A string enum outside the spine profiles, exposed as its own generated C# enum.</summary>
     Enum = 5,
+
+    /// <summary>
+    /// The value that fills a route's trailing wildcard: a required string escaped segment by
+    /// segment into the path, never sent as a query parameter (ADR-0029).
+    /// </summary>
+    RouteTail = 6,
 }

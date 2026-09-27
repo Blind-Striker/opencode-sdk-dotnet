@@ -28,11 +28,6 @@ internal sealed class OperationWireShapeWall(OperationFacetContext context, Emis
             _context.Refuse($"HTTP method '{operation.Method}' is not supported");
         }
 
-        if (operation.HasWildcardPath)
-        {
-            _context.Refuse("wildcard paths are not supported in M1");
-        }
-
         if (operation.IsWebSocket)
         {
             _context.Refuse("WebSocket operations are not supported in M1");

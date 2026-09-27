@@ -22,7 +22,7 @@ covered. All three of opencode's connection modes are open: a private server the
 endpoint you already run, and the background service the CLI registers — discovered, ensured, or
 stopped the way the CLI does it.
 
-- ✅ **134 of 136 operations** callable — 132 generated, two through hand-written WebSocket
+- ✅ **135 of 136 operations** callable — 133 generated, two through hand-written WebSocket
   transports — across 27 client families: sessions, PTYs, persistent PTYs, shells, events, MCP
   servers, integrations, providers, permissions, credentials, config, VCS, worktrees, websearch,
   RPC, and more
@@ -326,21 +326,16 @@ overload shown above.
 
 ## 🧭 API Coverage
 
-**132 of 136 operations** in the pinned snapshot are generated; two more have hand-written
-WebSocket transports. The four operations outside generation are recorded decisions — each one has a named cause, and
+**133 of 136 operations** in the pinned snapshot are generated; two more have hand-written
+WebSocket transports. The three operations outside generation are recorded decisions — each one has a named cause, and
 [`src/OpenCode.Sdk/.generation-incomplete`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/src/OpenCode.Sdk/.generation-incomplete) is the
 machine-readable map that the build itself reads.
 
-**Two operations are declined**, because admitting them would mean inventing a contract upstream
-does not declare or binding one the generator has no mechanism for:
+**One operation is declined** for now, because the generator has no mechanism for it yet:
 
-- **`fs.read`** — the route is `/api/fs/read/*`, a framework wildcard rather than an OpenAPI
-  path template. There is no declared path parameter to bind, and inventing one would put a
-  fabricated contract in a generated client. An upstream report is drafted.
-- **`experimental.fs.write`** — the file travels as an `application/octet-stream` request body,
-  a media type the generator's binder does not bind (its vocabulary is JSON and
-  `text/event-stream`), so it is the same hand-written-door question as `fs.read` and is decided
-  with it.
+- **`experimental.fs.write`** — the file travels as an `application/octet-stream` request body.
+  The generator binds raw bytes on the response side (`FileSystem.ReadFileAsync`) but not yet as a
+  request body; admitting it is the next step of surface completeness.
 
 **Two operations are transport-owned**: `pty.connect` and `persistentPty.connect` are
 WebSocket upgrades that the HTTP pipeline cannot carry. They are fully usable — through the

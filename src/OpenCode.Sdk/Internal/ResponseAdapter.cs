@@ -18,6 +18,20 @@ internal abstract class ResponseAdapter<TResponse>
     /// <summary>Maps a validated UTF-8 success body onto the typed envelope.</summary>
     public abstract TResponse AdaptSuccess(int status, ReadOnlySpan<byte> utf8Body);
 
+    /// <summary>
+    /// Gets a value indicating whether the success body is raw bytes the materializer hands to
+    /// <see cref="AdaptBinary"/> undecoded; false for every JSON success.
+    /// </summary>
+    public virtual bool BinarySuccess => false;
+
+    /// <summary>Maps a raw-byte success body and its declared content type onto the typed envelope.</summary>
+    /// <param name="status">The HTTP status code.</param>
+    /// <param name="body">The buffered response bytes.</param>
+    /// <param name="contentType">The response's Content-Type header, or null when it has none.</param>
+    /// <returns>The typed envelope.</returns>
+    public virtual TResponse AdaptBinary(int status, ReadOnlySpan<byte> body, string? contentType) =>
+        throw new InvalidOperationException("The operation does not answer with raw bytes.");
+
     /// <summary>Maps a buffered response body onto the typed envelope.</summary>
     /// <param name="status">The HTTP status code.</param>
     /// <param name="rawBody">The buffered response body.</param>

@@ -281,6 +281,11 @@
       "reason": "The group singular 'fs' does not pluralize naively, exactly like pty.list; the reviewed subject is the directory's entries."
     },
     {
+      "operationId": "fs.read",
+      "methodName": "ReadFileAsync",
+      "reason": "The operation's own verb is read (upstream summary 'Read file', upstream client file.read); the mechanical read name 'GetReadAsync' would stack the read verb on it. The subject is one file, beside the directory's entries fs.list and fs.find return."
+    },
+    {
       "operationId": "fs.find",
       "methodName": "FindEntriesAsync",
       "reason": "The operation's own verb is find (upstream summary 'Find files'); the mechanical read name 'GetFindAsync' would stack the read verb on it. The subject is the directory's entries, matching fs.list's reviewed subject in the same client family."
@@ -708,10 +713,6 @@
     }
   ],
   "declined": [
-    {
-      "operationId": "fs.read",
-      "reason": "Upstream declares the route as the framework wildcard '/api/fs/read/*' rather than an OpenAPI path template, so the document gives the generator no path parameter to bind and inventing one is forbidden (ADR-0013); the upstream report is drafted and parked, maintainer 2026-08-30."
-    },
     {
       "operationId": "experimental.fs.write",
       "reason": "The request body is application/octet-stream and the binder's media-type vocabulary is application/json and text/event-stream only (SpecMediaType), so the operation does not bind; admitting it is the same hand-written-door question as fs.read (ADR-0013, ADR-0021) and is queued in M4 surface completeness, maintainer 2026-09-18."

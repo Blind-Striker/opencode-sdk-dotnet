@@ -15,7 +15,7 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
 - **Protocol pin** — generation reads an accepted snapshot of upstream's OpenAPI document taken at
   a release tag, never a live branch, and refreshes are receipt-governed (ADR-0020).
   `../spec/SNAPSHOT.md` owns the exact commit and the refresh procedure.
-- **Coverage** — **132 of 136 operations selected** across 27 client families, with 2 declined by
+- **Coverage** — **133 of 136 operations selected** across 27 client families, with 1 declined by
   decision and 2 transport-owned (Known Gaps below); `src/OpenCode.Sdk/.generation-incomplete` is
   the committed marker and names every one. One-shot calls, server-sent event streams (the global
   bus and the per-session log), PTY and persistent-PTY WebSocket sessions, cursor pagination, typed
@@ -100,11 +100,10 @@ is revisited at each boundary.
    through an ADR-0016 first-match arm that mirrors upstream's own union decode — token kind,
    literal sentinel, declaration order, required-key presence — proven against upstream's real
    decoder ([#87](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/87)); `fs.read`
-   through a hand-written door over the wildcard octet-stream route with a watched upstream
-   handler (an ADR-0013 question first), with `experimental.fs.write` — the same family's
-   octet-stream request body, which the binder's JSON-and-event-stream media-type vocabulary
-   cannot bind — decided alongside it; and the two transport-owned WebSocket doors counted as
-   the covered operations they are — so the surface reads 136 of 136 usable.
+   through upstream's own trailing-wildcard codegen rule and a binary response envelope
+   (ADR-0029); `experimental.fs.write` — the same family's octet-stream request body — as a
+   caller `Stream` beside its query record; and the two transport-owned WebSocket doors counted
+   as the covered operations they are — so the surface reads 136 of 136 usable.
    **What remains of M4, in order:** surface completeness (#87); response envelopes that stop
    printing the server's raw error body in `ToString`
    ([#100](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/100)); the refresh to the
@@ -161,15 +160,11 @@ is revisited at each boundary.
 
 ## Known Gaps
 
-- **Two operations stay declined by decision, not by omission.** The generation marker carries
-  each reason. `fs.read` is declared on a framework wildcard rather than an OpenAPI path template,
-  so the file path the call must carry is invisible to any generated client; admitting it would
-  mean inventing a path parameter the document does not declare (ADR-0013), and the upstream report
-  is drafted. `experimental.fs.write` takes its file as an `application/octet-stream` request body,
-  a media type the binder does not bind (its vocabulary is JSON and `text/event-stream`), so it is
-  the same hand-written-door question as `fs.read`. Both have a sketched admission path
-  (Milestones, M4: surface completeness), so these are scheduled decisions to revisit, not
-  standing ones.
+- **One operation stays declined by decision, not by omission.** The generation marker carries its
+  reason. `experimental.fs.write` takes its file as an `application/octet-stream` request body,
+  which the binder admits only on the response side today; the request side (a caller `Stream`
+  body beside its query record) is the next slice of surface completeness (Milestones, M4), so this
+  is a scheduled decision, not a standing one.
 - **An opencode server on Windows can die inside its native file watcher.** `@parcel/watcher` 2.5.1
   crashes the server process when a directory it watches natively is written to while
   subscriptions to it are being released and re-created, which the server does per location for
