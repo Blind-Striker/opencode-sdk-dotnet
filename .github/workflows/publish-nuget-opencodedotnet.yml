@@ -13,6 +13,9 @@
 #
 # The lane refuses any ref but master, for the reason publish-nuget.yml gives: a version pushed from
 # a feature branch can only be unlisted, never deleted.
+#
+# The lane packs the commit that the commit input names, for the reason publish-nuget.yml gives:
+# give both lanes the same full SHA, so that one version is one commit under both prefixes.
 name: "Publish to NuGet (OpenCodeDotNet)"
 
 on:
@@ -20,6 +23,9 @@ on:
     inputs:
       version:
         description: "Exact version to stamp on the packages (e.g. 0.9.0-preview.3)"
+        required: true
+      commit:
+        description: "Full 40-character master commit SHA to pack (give both publish lanes the same SHA)"
         required: true
 
 permissions:
@@ -41,8 +47,29 @@ jobs:
       id-token: write
 
     steps:
+      # The same commit checks as publish-nuget.yml.
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.commit }}
+          fetch-depth: 0
+
+      - name: Verify commit
+        env:
+          COMMIT: ${{ inputs.commit }}
+        run: |
+          set -euo pipefail
+          head="$(git rev-parse HEAD)"
+          if [ "$head" != "$COMMIT" ]; then
+            echo "::error::The commit input must be a full commit SHA. The checkout resolved it to $head."
+            exit 1
+          fi
+          git fetch --no-tags origin +refs/heads/master:refs/remotes/origin/master
+          if ! git merge-base --is-ancestor "$COMMIT" origin/master; then
+            echo "::error::master does not contain $COMMIT."
+            exit 1
+          fi
+          echo "Packing commit \`$COMMIT\`." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v6
@@ -76,6 +103,19 @@ jobs:
           unzip -p "$extensions" '*.nuspec' | grep -q "<id>${PACKAGE_ID_PREFIX}.Sdk.Extensions</id>"
           unzip -p "$extensions" '*.nuspec' | grep -q "<dependency id=\"${PACKAGE_ID_PREFIX}.Sdk\" version=\"${PACKAGE_VERSION}\""
           echo "Packing ${PACKAGE_ID_PREFIX}.Sdk and ${PACKAGE_ID_PREFIX}.Sdk.Extensions ${PACKAGE_VERSION}."
+
+      - name: Verify packed commit
+        env:
+          COMMIT: ${{ inputs.commit }}
+        run: |
+          set -euo pipefail
+          for package in packages/*.nupkg; do
+            nuspec="$(unzip -p "$package" '*.nuspec')"
+            if ! grep -q "commit=\"${COMMIT}\"" <<< "$nuspec"; then
+              echo "::error::$package does not carry commit $COMMIT."
+              exit 1
+            fi
+          done
 
       - name: "NuGet.org login (OIDC)"
         id: nuget-login
