@@ -22,7 +22,7 @@ covered. All three of opencode's connection modes are open: a private server the
 endpoint you already run, and the background service the CLI registers — discovered, ensured, or
 stopped the way the CLI does it.
 
-- ✅ **All 136 operations** callable — 134 generated, two through hand-written WebSocket
+- ✅ **All 138 operations** callable — 136 generated, two through hand-written WebSocket
   transports — across 27 client families: sessions, PTYs, persistent PTYs, shells, events, MCP
   servers, integrations, providers, permissions, credentials, config, VCS, worktrees, websearch,
   RPC, and more
@@ -132,7 +132,7 @@ not what this repository tests. The pinned release tag and its npm version are o
 [`spec/SNAPSHOT.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/spec/SNAPSHOT.md).
 
 ```sh
-npm install -g @opencode/cli@2.0.15
+npm install -g @opencode/cli@2.0.18
 ```
 
 Then either run it yourself:
@@ -326,7 +326,7 @@ overload shown above.
 
 ## 🧭 API Coverage
 
-**134 of 136 operations** in the pinned snapshot are generated; the other two have hand-written
+**136 of 138 operations** in the pinned snapshot are generated; the other two have hand-written
 WebSocket transports. No operation is declined, and
 [`src/OpenCode.Sdk/.generation-incomplete`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/src/OpenCode.Sdk/.generation-incomplete) is the
 machine-readable map that the build itself reads.

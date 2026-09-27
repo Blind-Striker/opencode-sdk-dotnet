@@ -15,8 +15,8 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
 - **Protocol pin** — generation reads an accepted snapshot of upstream's OpenAPI document taken at
   a release tag, never a live branch, and refreshes are receipt-governed (ADR-0020).
   `../spec/SNAPSHOT.md` owns the exact commit and the refresh procedure.
-- **Coverage** — **134 of 136 operations selected** across 27 client families, none declined, and
-  2 transport-owned that hand-written WebSocket doors cover, so all 136 are usable; `src/OpenCode.Sdk/.generation-incomplete` is
+- **Coverage** — **136 of 138 operations selected** across 27 client families, none declined, and
+  2 transport-owned that hand-written WebSocket doors cover, so all 138 are usable; `src/OpenCode.Sdk/.generation-incomplete` is
   the committed marker and names every one. One-shot calls, server-sent event streams (the global
   bus and the per-session log), PTY and persistent-PTY WebSocket sessions, cursor pagination, typed
   errors with `NoThrow`, and the standalone launcher (`OpenCodeServer.StartAsync`) are landed.
@@ -28,18 +28,18 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
   targets. Linux and macOS live verification also passed on net8/net9/net10, including the persistent daemon
   round trip and normal PTY reuse after read cancellation. `architecture/client-runtime.md` and
   ADR-0023 own the contract.
-- **2.0.15 refresh** — the accepted pin follows upstream's release tags inside M4, now `v2.0.15`,
-  with no compatibility layer between them. 2.0.15 adds no operation and moves none:
-  `session.update` gains `metadata`, which replaces the session's metadata as a whole and is
-  logged as the durable `session.metadata.updated` event, and a connection credential's `method`
-  and a project's `active` time become required. The hand-written doors' upstream inputs moved in
-  two places, both reviewed: the CLI entry writes a fatal startup cause to stderr, which a
-  contender's failure report carries, and on Windows a package-installed service keeps a second
-  hard link to its own image while it runs, which `StopAsync` ends by pid and start time as before
-  — proven against the published CLI on the consumer leg. Each refresh's CI run qualifies every
-  leg at its pin: Windows on `net472`, `net8.0`, `net9.0`, and `net10.0`, Linux and macOS on
-  `net8.0`, `net9.0`, and `net10.0`, with regeneration and receipt verification passing. The
-  remaining M4 slices follow the order in the milestone paragraph.
+- **2.0.18 refresh** — the accepted pin follows upstream's release tags inside M4, now `v2.0.18`,
+  with no compatibility layer between them. 2.0.18 adds two operations, both generated: pairing
+  (`Server.CreatePairingCodeAsync`, `Server.RedeemPairingCodeAsync`), whose session token the server
+  accepts anywhere the password is; and `ShellInfo` gains the `Signal` a killed command reports. A
+  refused credential now answers with the declared `UnauthorizedError` JSON body, so the typed error
+  arrives on a 401. The hand-written doors' upstream inputs moved only where those changes pass
+  through (the authorization middleware, the process layer's 401, the credential check), all
+  reviewed; the launcher, discovery, Ensure, and Stop inputs, Effect's release, and the
+  trailing-wildcard codegen rule are unchanged, and both oracles reproduce their verdicts. Each
+  refresh's CI run qualifies every leg at its pin: Windows on `net472`, `net8.0`, `net9.0`, and
+  `net10.0`, Linux and macOS on `net8.0`, `net9.0`, and `net10.0`, with regeneration and receipt
+  verification passing.
 - **Official launch watch** — upstream's own 1.x npm package (`opencode-ai`) and its GitHub Releases
   page were both still at `1.18.31` when last observed on 2026-09-16, so the 2.x line had not had
   its official launch then. The pin tracks upstream release tags and is refreshed under receipt at

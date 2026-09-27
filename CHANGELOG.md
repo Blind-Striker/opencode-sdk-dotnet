@@ -11,6 +11,16 @@ Nightly builds of `master` are on
 
 ### ✨ Added
 
+- **The accepted snapshot moved to upstream release tag `v2.0.18`**
+  (`cd9a14a6b688d4021bee381dfd39d2cef9c0f862`), published as `@opencode/cli@2.0.18`; install it
+  with `npm install -g @opencode/cli@2.0.18`. It adds two operations and moves none, so all 138
+  are usable: 136 generated and the two WebSocket transports.
+- **Pairing.** `client.Server.CreatePairingCodeAsync()` (`server.pair`) issues a short-lived,
+  single-use code; `client.Server.RedeemPairingCodeAsync(code)` (`server.connect`) exchanges it,
+  with no other credential, for a session token the server accepts anywhere the password is, so
+  another client connects with `Password = token` without ever holding the server password. The
+  token is masked in `PairingSession.ToString()`, and so is the code in `PairingCode.ToString()`.
+- **`ShellInfo.Signal`** names the signal that ended a killed command.
 - **The configuration can be read back.** `client.Config.GetConfigAsync()` (`config.get`) returns
   the configuration documents and discovery sources for the location, from lowest to highest
   priority: a `ConfigDocument` carries its `ConfigInfo`, a `ConfigDirectory` the directory it came
@@ -41,6 +51,13 @@ Nightly builds of `master` are on
   `Enumerate*Async` companion, and each hand-written PTY and persistent-PTY door carries an XML
   `<remarks>` with its operation id, HTTP method, and route, for example
   `Operation session.permission.create: POST /api/session/{sessionID}/permission`.
+
+### 🔧 Changes
+
+- **A 401 now carries the typed `UnauthorizedError`.** From 2.0.18 the server answers a missing or
+  refused credential with the error body its document declares, where it used to send an empty
+  one, so `Error` is `UnauthorizedError` instead of `null`. Nothing changed in the SDK; the errors
+  guide now says so.
 
 ### 🐛 Fixes
 

@@ -827,7 +827,10 @@ namespace OpenCode.Sdk
         }
         public static class Server
         {
+            public const string CreatePairingCode = "/api/pair";
             public const string GetInfo = "/api/info";
+            public const string RedeemPairingCodeTemplate = "/auth/connect/{code}";
+            public static string RedeemPairingCode(string code) { }
         }
         public static class Sessions
         {
@@ -1490,12 +1493,26 @@ namespace OpenCode.Sdk
     public class ServerClient
     {
         protected ServerClient() { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ServerPairResponse> CreatePairingCodeAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ServerInfoResponse> GetInfoAsync(OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.ServerConnectResponse> RedeemPairingCodeAsync(string code, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class ServerConnectResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ServerConnectResponse>
+    {
+        public ServerConnectResponse() { }
+        public required OpenCode.Sdk.Models.PairingSession PairingSession { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class ServerInfoResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ServerInfoResponse>
     {
         public ServerInfoResponse() { }
         public required OpenCode.Sdk.Models.ServerInfo ServerInfo { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class ServerPairResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.ServerPairResponse>
+    {
+        public ServerPairResponse() { }
+        public required OpenCode.Sdk.Models.PairingCode PairingCode { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public sealed class SessionActiveResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.SessionActiveResponse>
@@ -5051,6 +5068,22 @@ namespace OpenCode.Sdk.Models
         public System.Collections.Generic.IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Metadata { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; }
+    }
+    public sealed class PairingCode : System.IEquatable<OpenCode.Sdk.Models.PairingCode>
+    {
+        public PairingCode() { }
+        [System.Text.Json.Serialization.JsonPropertyName("code")]
+        public required string Code { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("expires_in")]
+        public required long ExpiresIn { get; init; }
+        public override string ToString() { }
+    }
+    public sealed class PairingSession : System.IEquatable<OpenCode.Sdk.Models.PairingSession>
+    {
+        public PairingSession() { }
+        [System.Text.Json.Serialization.JsonPropertyName("token")]
+        public required string Token { get; init; }
+        public override string ToString() { }
     }
     public sealed class PermissionAsked : OpenCode.Sdk.Models.IEvent, System.IEquatable<OpenCode.Sdk.Models.PermissionAsked>
     {
@@ -10019,6 +10052,9 @@ namespace OpenCode.Sdk.Models
         public long? Pid { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("shell")]
         public required string Shell { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [System.Text.Json.Serialization.JsonPropertyName("signal")]
+        public string? Signal { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("status")]
         public required OpenCode.Sdk.Models.ShellInfoStatus Status { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("time")]
