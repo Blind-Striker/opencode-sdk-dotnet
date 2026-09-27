@@ -13,6 +13,9 @@ namespace OpenCode.Sdk.Internal;
 /// </summary>
 internal sealed class ChildOutputReader
 {
+    /// <summary>Reader threads started in this process and not yet ended.</summary>
+    private static int s_liveReaders;
+
     private readonly TextReader _reader;
     private readonly Action<string> _onLine;
     private readonly TaskCompletionSource<bool> _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -32,6 +35,12 @@ internal sealed class ChildOutputReader
     /// </summary>
     public Task<bool> Completion => _completion.Task;
 
+    /// <summary>
+    /// Gets how many reader threads started in this process have not ended yet; friend-assembly
+    /// test seam for the guard that no reader outlives the test session.
+    /// </summary>
+    internal static int LiveReaders => Volatile.Read(ref s_liveReaders);
+
     /// <summary>Starts a background thread that delivers every line of <paramref name="reader"/> to <paramref name="onLine"/>.</summary>
     /// <param name="reader">The redirected stream's reader; the reader's owner disposes it.</param>
     /// <param name="onLine">Receives each line, on the reading thread.</param>
@@ -44,6 +53,7 @@ internal sealed class ChildOutputReader
 
         var outputReader = new ChildOutputReader(reader, onLine);
         var thread = new Thread(outputReader.Run) { IsBackground = true, Name = threadName };
+        _ = Interlocked.Increment(ref s_liveReaders);
         thread.Start();
         return outputReader;
     }
@@ -95,6 +105,10 @@ internal sealed class ChildOutputReader
         finally
         {
             CloseOwnThreadHandle();
+
+            // Counted down before completion is signaled, so an owner that awaited Completion
+            // already sees this thread gone.
+            _ = Interlocked.Decrement(ref s_liveReaders);
             _ = _completion.TrySetResult(endOfStream);
         }
     }
