@@ -292,6 +292,30 @@ public sealed class OpenCodeServerLifecycleTests
         await Assert.That(snapshot.StandardError).IsEquivalentTo(["bye"], CollectionOrdering.Matching);
     }
 
+    /// <summary>
+    /// Disposal releases the output readers with no collector attached too: on Windows they run on
+    /// dedicated threads while the child lives, and none of them outlives the owning handle.
+    /// </summary>
+    [Test]
+    [Timeout(120_000)]
+    public async Task DisposeAsync_Should_End_The_Output_Readers_Without_A_Collector(CancellationToken cancellationToken)
+    {
+        const string readyLine = "{\"url\":\"http://127.0.0.1:1\"}";
+        var server = await OpenCodeServer.StartAsync(
+            new OpenCodeServerOptions
+            {
+                Command = ["bun", "-e", "console.log('" + readyLine + "'); setTimeout(() => {}, 120000)"],
+                GracefulShutdownTimeout = TimeSpan.Zero,
+            },
+            cancellationToken);
+        var runningWhileLive = !server.OutputReadersEnded.IsCompleted;
+
+        await server.DisposeAsync();
+
+        await Assert.That(runningWhileLive).IsEqualTo(OperatingSystem.IsWindows());
+        await Assert.That(server.OutputReadersEnded.IsCompleted).IsTrue();
+    }
+
     [Test]
     [Timeout(120_000)]
     public async Task StartAsync_Should_Leave_The_Collector_Readable_After_A_Failed_Start(CancellationToken cancellationToken)

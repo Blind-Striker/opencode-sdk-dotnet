@@ -1005,20 +1005,37 @@ dotnet_diagnostic.VSTHRD003.severity = none
 [tests/OpenCode.Sdk.Sandbox/**.cs]
 dotnet_diagnostic.MA0076.severity = none
 
-# StartAsync's readyLine TaskCompletionSource is completed only by this same method's own
-# OutputDataReceived handler, wired to the very child process this method spawns — there is no
+# StartAsync's readyLine TaskCompletionSource is completed only by this same method's own stdout
+# line handler, wired to the very child process this method spawns — there is no
 # externally-owned task lifetime for VSTHRD003 to protect against, the same shape already
 # arbitrated for ScriptedTerminalWebSocket's TaskCompletionSource handles. Winner: the event-to-async
 # bridge for the readiness signal; VSTHRD003 remains enabled for every other file.
-# WaitForExitBestEffort must call the parameterless WaitForExit(), not WaitForExitAsync(): Polyfill's
-# downlevel WaitForExitAsync is Exited-event-only and never waits for the async output readers to
-# reach EOF, while .NET Framework's synchronous WaitForExit() does drain them before returning.
-# Every startup-failure path calls this after the child has already exited, so it returns
-# promptly, and the stderr tail the failure message quotes is complete on every TFM. Winner: the
-# cross-TFM diagnostics-drain contract; MA0045 remains enabled elsewhere.
 [src/OpenCode.Sdk/OpenCodeServer.cs]
 dotnet_diagnostic.VSTHRD003.severity = none
+
+# The drain must call the parameterless WaitForExit(), not WaitForExitAsync(): Polyfill's
+# downlevel WaitForExitAsync is Exited-event-only and never waits for the event readers to reach
+# EOF, while the synchronous WaitForExit() does drain them before returning. It runs under
+# BoundedDrain's hard bound, after the child was ended. Winner: the cross-TFM diagnostics-drain
+# contract; MA0045 remains enabled elsewhere.
+[src/OpenCode.Sdk/Internal/ProcessEventOutputPump.cs]
 dotnet_diagnostic.MA0045.severity = none
+
+# The launcher's Windows output reader reads synchronously on a dedicated thread on purpose:
+# before .NET 11, Process creates the redirected pipes synchronous, so an async read would run
+# the same blocking ReadFile on a thread-pool thread and hold it for the server's whole life
+# (dotnet/runtime#81896), which is the pool starvation this reader exists to prevent. The read is
+# cancellable through CancelSynchronousIo. Winner: the dedicated-thread reader; MA0045 remains
+# enabled elsewhere.
+[src/OpenCode.Sdk/Internal/ChildOutputReader.cs]
+dotnet_diagnostic.MA0045.severity = none
+
+# The pump awaits the completion tasks of the two ChildOutputReader threads it started itself;
+# each is completed only by that reader's own thread when it ends, so there is no foreign task
+# lifetime for VSTHRD003 to protect against. Winner: owned reader completion; VSTHRD003 remains
+# enabled elsewhere.
+[src/OpenCode.Sdk/Internal/DedicatedThreadOutputPump.cs]
+dotnet_diagnostic.VSTHRD003.severity = none
 
 # OpenCodeServerContractTests exercises the processless friend-assembly seam
 # (internal OpenCodeServer(Uri, string)) and the bare protected-ctor mock seam exclusively:

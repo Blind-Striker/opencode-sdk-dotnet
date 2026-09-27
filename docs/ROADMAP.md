@@ -213,12 +213,6 @@ is revisited at each boundary.
   place this one layer above their core client, which does not reconnect either
   (`packages/client/src/solid/connection.ts`: two-second connect, forty-five-second idle abort,
   one-second reconnect delay, and an authoritative refetch once reconnected).
-- **The launcher's piped reads hold thread-pool threads on Windows** before .NET 11: two per
-  standalone server, for its life (`architecture/client-runtime.md`, Launcher). The ten-second
-  `net472` test stalls once suspected here had two other causes, both fixed in
-  [#111](https://github.com/Blind-Striker/opencode-sdk-dotnet/pull/111). A launcher that owns its
-  pipes, as the contender spawn does, is reconsidered only if a thread-pool sample ties a CI stall
-  to launcher reads.
 - **Live tests are serialized by one mutex within a host** ([#83](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/83)):
   every live class that shares a server carries the `ServerProcess` key, and the classes whose
   assertions ride a wall-clock bound run keyless `[NotInParallel]`, so a host's live tests run one
