@@ -112,15 +112,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # test-modules: the main Test pass's --max-parallel-test-modules, measured per runner
+        # (docs/engineering/quality-gates.md).
         include:
           - os: windows-2025
             name: Windows
+            test-modules: 2
 
           - os: ubuntu-24.04
             name: Linux
+            test-modules: 4
 
           - os: macos-15
             name: macOS
+            test-modules: 3
 
     steps:
       - name: Checkout
@@ -191,11 +196,11 @@ jobs:
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env['ACTIONS_RUNTIME_TOKEN']);
             core.exportVariable('ACTIONS_RESULTS_URL', process.env['ACTIONS_RESULTS_URL']);
 
-      # At most four test modules at once, the measured overlap on every runner rather than MTP's
-      # processor-count default (docs/engineering/quality-gates.md). Paired against two on the
-      # same VM, six runs per OS (runs 36318362319 and 36320089583), the main pass took 27% less
-      # time on Linux, 16% on Windows and 29% on macOS, with no failed run and no timing-bound
-      # test nearer its bound.
+      # The number of test modules at once is the matrix's test-modules value, measured per runner
+      # rather than left to MTP's processor-count default (docs/engineering/quality-gates.md):
+      # Windows 2, because its process-tree startup tests stall more often with more hosts; Linux
+      # 4; macOS 3, which keeps its loopback handoff tests' margin during a Roslyn compilation
+      # burst.
       #
       # The background-service elections run in a pass of their own after every other test. A
       # ten-caller election starts some twenty to thirty-four source-run servers, and a timed test
@@ -206,7 +211,7 @@ jobs:
       # report upload to the first pass, whose artifact names (assembly, OS, framework) it would
       # repeat.
       - name: Test
-        run: dotnet test --configuration Release --no-build --max-parallel-test-modules 4 -- --report-trx --results-directory "${{ github.workspace }}/test-results/main" --treenode-filter "/*/*/*/*[Category!=ServiceElection]" --minimum-expected-tests 1
+        run: dotnet test --configuration Release --no-build --max-parallel-test-modules ${{ matrix.test-modules }} -- --report-trx --results-directory "${{ github.workspace }}/test-results/main" --treenode-filter "/*/*/*/*[Category!=ServiceElection]" --minimum-expected-tests 1
         env:
           TUNIT_ARTIFACT_RETENTION_DAYS: 7
 
