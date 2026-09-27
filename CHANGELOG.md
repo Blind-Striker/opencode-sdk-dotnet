@@ -79,6 +79,12 @@ generated 130 and declined 4. `config.get`, `experimental.migration.v1.status`, 
 
 ### 📚 Documentation
 
+- **The README is a front page.** It opens with the status and a capability table that maps each
+  area of the API to its `client.*` entry point and guide page. The quick start opens with a table
+  for choosing a connection mode, and the known issues keep only what a consumer meets. Every link
+  is absolute, so the page also works on NuGet.org.
+- **The connection guide shows how to pair another client** (`CreatePairingCodeAsync`, then
+  `RedeemPairingCodeAsync`, then `Password = token`), and it lists the launcher's `Output` option.
 - **A CLI-started server's session log is the marker alone, followed as well as replayed.** The
   streaming guide and the README's known issues said live `Follow = True` delivery was unaffected
   by persistence; it is not. The server's live tail re-reads the same persisted store as a replay,
