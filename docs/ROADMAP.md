@@ -48,7 +48,7 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
 - **Packages** — the two packages publish as `OpenCodeAI.Sdk` and `OpenCodeAI.Sdk.Extensions`
   (the assemblies stay `OpenCode.Sdk`) and pack at the single-sourced
   `VersionPrefix 0.9.0`. Every `master` push publishes a `0.9.0-nightly.*` build to GitHub
-  Packages, and `0.9.0-preview.3` is on NuGet.org, owned by `OpenCode.NET` and pushed through the
+  Packages, and `0.9.0-preview.4` is on NuGet.org, owned by `OpenCode.NET` and pushed through the
   manual lane over Trusted Publishing. The ids carry `OpenCodeAI` because nuget.org reserves the
   `OpenCode.` prefix for an unrelated owner; that dispute is still open and no longer blocks
   anything.
@@ -105,7 +105,7 @@ is revisited at each boundary.
    caller `Stream` beside its query record; and the two transport-owned WebSocket doors counted
    as the covered operations they are. The accepted pin then moved under receipt to the newest
    upstream release tag, `v2.0.18`, whose two pairing operations are generated, so all 138 of 138
-   operations are usable. **M4 is complete in code; it ships as `0.9.0-preview.4`.**
+   operations are usable. **Complete** — released as `0.9.0-preview.4`.
 5. **M5 — Full surface.** Target admission over the refreshed surface, driven by the `refresh-spec`
    synchronizer (ADR-0020) and the ownership pattern for the terminal families (ADR-0021). Coverage
    has reached its end state; what remains is exclusion fingerprints for the transport-owned
