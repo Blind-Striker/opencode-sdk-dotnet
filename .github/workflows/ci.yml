@@ -33,13 +33,21 @@ env:
 jobs:
   # The OS-independent gates run once, beside the matrix instead of inside its Linux leg, where
   # they delayed that leg's tests by about 5 minutes (2026-09-26, run 36231256172). None of them
-  # needs the build, the submodule, or the pinned server: the formatter compiles in memory from
-  # the restored projects, and generation reads only committed inputs.
+  # needs the submodule or the pinned server: the formatter compiles in memory from the restored
+  # projects, and generation reads only committed inputs.
+  #
+  # The analyzer wall also runs here, once, for every target compilation. Every OS compiles the
+  # same LF-normalized sources (.gitattributes), and the one OS-conditioned setting that reaches a
+  # compilation is the Windows-only net472 test target, which IncludeNet472Tests adds here.
+  # MSBuild reads the variable as a property in every step, so restore, format and build see the
+  # same targets.
   lint:
     name: "Lint & Generated Output"
     runs-on: ubuntu-24.04
     permissions:
       contents: read
+    env:
+      IncludeNet472Tests: true
 
     steps:
       - name: Checkout
@@ -78,6 +86,13 @@ jobs:
       # style rules plus import organization, including rules Roslyn cannot enforce during build.
       - name: Verify code style
         run: dotnet format style --verify-no-changes --no-restore --severity warn
+
+      # Build owns the analyzer wall (docs/engineering/quality-gates.md). The matrix legs compile
+      # without analyzers, so this build is the CI wall for every target, net472 tests included.
+      - name: Build with analyzers
+        run: dotnet build --configuration Release --no-restore
+        env:
+          DOTNET_TieredPGO: 0
 
       # Smoke-runs the repo tooling entry; exercises the committed executable bit and the
       # shebang, which only take effect on a Linux checkout.
@@ -147,9 +162,14 @@ jobs:
       # (-17%), macOS -62 s (-16%)). A JIT setting does not change the compiler's output; a
       # dev-01 build with it produced the identical assembly hash. The tests run on the default
       # runtime settings.
+      #
+      # The lint job runs the analyzer wall once for every target compilation, so these legs only
+      # compile, test and publish. Analyzers were 72-79% of this step: skipping them shortened it
+      # by 228 s on Linux, 363 s on Windows and 342 s on macOS (2026-09-26, run 36269677228).
+      # Source generators still run: RunAnalyzers=false only passes SkipAnalyzers to the compiler.
       - name: Build
         id: build
-        run: dotnet build --configuration Release
+        run: dotnet build --configuration Release -p:RunAnalyzers=false
         env:
           DOTNET_TieredPGO: 0
 

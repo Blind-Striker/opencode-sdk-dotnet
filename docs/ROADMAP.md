@@ -250,7 +250,8 @@ is revisited at each boundary.
   `codeql.yml` that builds: full type resolution, bought with a workflow whose failure would stop
   scanning silently rather than loudly.
 - **`BuildOs`/`BuildArch` in `Directory.Build.props`** need their values adapted to opencode's
-  release-asset naming when the binary-download need lands.
+  release-asset naming when the binary-download need lands. `BuildOs == 'windows'` already adds the
+  net472 test targets, and opencode's assets use the same `windows` name.
 - **The launcher's descendant-termination proof has a platform boundary.** The startup-tree tests
   prove the direct child exits immediately and the grandchild terminates inside a ten-second bound
   on the modern target frameworks (all three OSes) and on `net472` Windows (`taskkill /T`). The
