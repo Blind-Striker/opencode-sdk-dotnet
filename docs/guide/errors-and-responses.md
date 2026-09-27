@@ -23,7 +23,7 @@ Every response type derives from `OpenCodeResponse`:
 | `Status` | `int` | The HTTP status the server answered with. |
 | `IsError` | `bool` | Whether this response is a failure. The guard for everything below. |
 | `Error` | `IOpenCodeError?` | The typed error payload, when the server sent one the SDK could type. |
-| `RawBody` | `string?` | The exact response body, retained on failures — including when typed parsing did not succeed. |
+| `RawBody` | `string?` | The exact response body, retained on failures — including when typed parsing did not succeed. A response's `ToString()` leaves it out, because a server can echo request data into an error body; read the property when you need it. |
 
 On top of the spine each response adds its own payload members: `SessionResponse.Session`,
 `SessionListResponse.Sessions` and `.Cursor`, `ServerInfoResponse.ServerInfo`, and so on.
