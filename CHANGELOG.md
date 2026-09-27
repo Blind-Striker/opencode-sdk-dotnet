@@ -9,6 +9,12 @@ Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.9.0-nightly.{yyyyMMdd}.{shortSha}`.
 
+**Every operation upstream exposes is now callable: 100% coverage of the protocol surface.** At
+upstream release tag `v2.0.18`, all 138 operations in the pinned document are usable — 136
+generated and the two terminal WebSocket transports — and none is declined. `0.9.0-preview.3`
+generated 130 and declined 4. `config.get`, `experimental.migration.v1.status`, `fs.read`, and
+`experimental.fs.write` are now generated, and the refresh to `v2.0.18` adds pairing.
+
 ### ✨ Added
 
 - **The accepted snapshot moved to upstream release tag `v2.0.18`**
