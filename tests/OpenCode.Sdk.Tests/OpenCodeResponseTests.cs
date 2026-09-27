@@ -39,5 +39,48 @@ public sealed class OpenCodeResponseTests
         await Assert.That(response.Sessions[1]).IsNull();
     }
 
+    /// <summary>
+    /// An error body can echo whatever the request carried, so a logged response must not print
+    /// it: the printed shape keeps the status and the typed error, and the raw body stays on its
+    /// property for a caller who asks for it.
+    /// </summary>
+    [Test]
+    public async Task ToString_Should_Not_Print_The_Raw_Error_Body()
+    {
+        const string rawBody = "{\"_tag\":\"InvalidRequestError\",\"message\":\"rejected sk-live-secret-token\"}";
+        var response = new EmptyResponse
+        {
+            Status = 400,
+            IsError = true,
+            Error = new InvalidRequestError { Message = "rejected" },
+            RawBody = rawBody,
+        };
+
+        var printed = response.ToString();
+
+        await Assert.That(printed).DoesNotContain("sk-live-secret-token");
+        await Assert.That(printed).DoesNotContain(nameof(OpenCodeResponse.RawBody));
+        await Assert.That(printed).Contains("Status = 400");
+        await Assert.That(printed).Contains("IsError = True");
+        await Assert.That(printed).Contains("Error = InvalidRequestError");
+        await Assert.That(response.RawBody).IsEqualTo(rawBody);
+    }
+
+    /// <summary>The generated envelopes chain to the base printer, so none of them prints it either.</summary>
+    [Test]
+    public async Task Generated_Envelope_ToString_Should_Not_Print_The_Raw_Error_Body()
+    {
+        using var scenario = ContractScenario.Responding(
+            System.Net.HttpStatusCode.NotFound,
+            "{\"_tag\":\"FileNotFoundError\",\"path\":\"notes.txt\",\"message\":\"File not found\",\"echo\":\"sk-live-secret-token\"}");
+
+        var response = await scenario.Client.FileSystem.ReadFileAsync(
+            new FsReadRequest { Path = "notes.txt" }, OpenCodeRequestOptions.NoThrow);
+
+        await Assert.That(response.RawBody).Contains("sk-live-secret-token");
+        await Assert.That(response.ToString()).DoesNotContain("sk-live-secret-token");
+        await Assert.That(response.ToString()).Contains("Status = 404");
+    }
+
     private sealed record EmptyResponse : OpenCodeResponse;
 }

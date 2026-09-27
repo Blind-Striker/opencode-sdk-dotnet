@@ -260,7 +260,9 @@ local server launcher. Protocol and generated-model rules live in
 - A one-shot call may select per-call `NoThrow`, returning the same typed error data on its response
   spine. There is no client-level error-behavior switch (ADR-0007).
 - Throwing API errors retain the raw response body. `NoThrow` responses retain it on the shared
-  response spine, including when typed error parsing fails (ADR-0007).
+  response spine, including when typed error parsing fails (ADR-0007). A response's printed form
+  (`ToString`) leaves the raw body out, because a server can echo request data into it; the status,
+  the error flag, and the typed error still print.
 - Transport, status/framing, JSON, dispatch, cancellation wrapping, and impossible top-level
   materialization failures throw `OpenCodeTransportException`. `NoThrow` applies only to declared
   API errors and never suppresses transport failures. Undeclared 3xx responses are protocol

@@ -618,6 +618,7 @@ namespace OpenCode.Sdk
         public bool IsError { get; init; }
         public string? RawBody { get; init; }
         public required int Status { get; init; }
+        protected virtual bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public static class OpenCodeRoutes
     {

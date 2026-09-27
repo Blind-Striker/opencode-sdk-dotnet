@@ -44,6 +44,10 @@ Nightly builds of `master` are on
 
 ### 🐛 Fixes
 
+- **A logged response no longer prints the raw error body.** Every response envelope's
+  `ToString()` printed `RawBody`, so logging a failed response wrote whatever the server echoed into
+  its error body, request data included. The printed form now keeps `Status`, `IsError`, and the
+  typed `Error`; `RawBody` itself is unchanged and still carries the body.
 - **`OpenCodeServer.EnsureAsync` no longer holds a thread-pool thread per contender on Windows.**
   The contender's standard error was an anonymous pipe, which Windows reads synchronously, so every
   contender Ensure started kept one pool thread blocked for as long as its standard error stayed
