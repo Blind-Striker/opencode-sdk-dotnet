@@ -4,8 +4,9 @@
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(DefaultTargetFramework)</TargetFrameworks>
     <!-- The net472 target measures the downlevel runtime itself and can only execute on Windows;
-         adding it conditionally keeps Linux/macOS builds single-target. -->
-    <TargetFrameworks Condition="'$(OS)' == 'Windows_NT'">net472;$(TargetFrameworks)</TargetFrameworks>
+         adding it conditionally keeps Linux/macOS builds single-target. IncludeNet472Tests adds it
+         elsewhere for a build that only compiles, such as the CI lint job's analyzer build. -->
+    <TargetFrameworks Condition="'$(BuildOs)' == 'windows' Or '$(IncludeNet472Tests)' == 'true'">net472;$(TargetFrameworks)</TargetFrameworks>
     <!-- BenchmarkDotNet refuses to measure unoptimized assemblies. -->
     <Optimize>true</Optimize>
     <!-- Everything measured goes through the source-generated context, exactly like the SDK. -->

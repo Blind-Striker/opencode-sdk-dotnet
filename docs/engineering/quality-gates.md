@@ -88,8 +88,14 @@ honestly.
 
 The build is the semantic analyzer wall: compiler diagnostics, build-enforceable IDE rules, SDK CA
 rules, third-party analyzers, and source-generator diagnostics run there for every target
-compilation. The whitespace pass separately retains UTF-8, LF, final-newline, trailing-whitespace,
-and syntax-whitespace enforcement. The warning-level style pass retains deterministic import
+compilation. The local gate builds with the wall on. CI runs it once, in the lint job's Linux
+build, which sets `IncludeNet472Tests` so the Windows-only net472 test targets are analyzed too;
+the three OS legs build with `RunAnalyzers=false`. Every OS compiles the same LF-normalized
+sources for the same targets, apart from those net472 test targets, which are the only
+OS-conditioned setting that reaches a compilation, and analyzers were three quarters of each leg's
+build.
+The whitespace pass separately retains UTF-8, LF, final-newline, trailing-whitespace, and
+syntax-whitespace enforcement. The warning-level style pass retains deterministic import
 organization and every configured Roslyn style error, including rules classified
 `EnforceOnBuild.Never`, without rerunning the SDK CA and third-party analyzer set. It deliberately
 uses no diagnostic allow-list so future warning/error style rules remain covered automatically.
