@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "upstreamCommit": "6f3639d82ed0760091792189b78f8eeb44f699b1",
+  "upstreamCommit": "cd9a14a6b688d4021bee381dfd39d2cef9c0f862",
   "rawDocumentSha256": "8ab6ec800922fc68890c68134320b4063fb317e0d944252d232083e12d32f4e9",
-  "generatedBaselineSha256": "8ab6ec800922fc68890c68134320b4063fb317e0d944252d232083e12d32f4e9",
+  "generatedBaselineSha256": "638efc194dedbfcef9cc5c5e05a3ecf3fd22cc1d37837cf6a74c2333447334a9",
   "patches": [
     {
       "manifest": "001-restore-sse-payloads.json",
@@ -19,13 +19,16 @@
       ]
     }
   ],
-  "normalizedDocumentSha256": "bb780dab683a0bc49c088c9ca10aeaaf2b7f27e55db6433af6bc3b3ef9f0f5a0",
+  "normalizedDocumentSha256": "26f5f08419039a8704bb3ed464130bd4a83e3f656a87b9122f5e2932f0755f0f",
   "normalizedDocumentPath": null,
-  "operationSetDigest": "3b16acd7850f268d4c4941e603e5eeec68ec2f835d92cd274e87c93132032e6d",
-  "operationCount": 136,
-  "addedOperations": [],
+  "operationSetDigest": "66bea56c4074802cdacd5587bb085a3974bf81565dd2d1c002bae93465090bf4",
+  "operationCount": 138,
+  "addedOperations": [
+    "server.connect",
+    "server.pair"
+  ],
   "removedOperations": [],
-  "componentCount": 370,
+  "componentCount": 372,
   "contentSchemaCount": 2,
   "watchedSources": [
     {
@@ -35,7 +38,7 @@
     },
     {
       "path": "packages/server/src/middleware/authorization.ts",
-      "sha256": "c84f217a02bd2d2a839673308f9e268a2a68a1ac9f8c47c9c9e52f7f666e1486",
+      "sha256": "61e1cb8df3e9f61803acbf25f4056349ad67ed8109f9bb63a7e474fc7c1cb0ef",
       "anchorMatched": true
     },
     {
@@ -60,7 +63,7 @@
     },
     {
       "path": "packages/server/src/routes.ts",
-      "sha256": "9d874bdcf7d3a234740eab520ac306fc364e30dc90ffd234b60c4e81bf5f0108",
+      "sha256": "024a5ed216e01b68333d2c9bfad9f62e6c6233ad3b17f2b7af1bdb7cada8e4c5",
       "anchorMatched": true
     },
     {
@@ -105,17 +108,17 @@
     },
     {
       "path": "packages/cli/package.json",
-      "sha256": "11a23b40e2f401cad09af54bcd68fec312424726b5bc29946ab33f3f501fb1ea",
+      "sha256": "899bacadbbf480264163f05b9c222e79f44074ca85d88aca0117fff4a990df04",
       "anchorMatched": true
     },
     {
       "path": "packages/core/package.json",
-      "sha256": "1368e0293971cbb81d11a57d95df150e6fe4d314d151021c1f29aa629711092f",
+      "sha256": "cca5224ae1a17d4a9991da955ac12a4c09697d58111f7edf20806b0c47b8b332",
       "anchorMatched": true
     },
     {
       "path": "packages/server/src/process.ts",
-      "sha256": "4cbd0a730e0c46bc1ebddb5a16c68ea605ce417be231047c2e6005079a6c54ec",
+      "sha256": "f92d9d249f8781ddecb26354e3d4f2e439f1152f3a946aebc9b8b85fdf090d9e",
       "anchorMatched": true
     },
     {
@@ -150,7 +153,7 @@
     },
     {
       "path": "packages/server/src/auth.ts",
-      "sha256": "278c66df3831c169756805391dca8fb6a2dc83b741ed58956d6cd353ee6ab3ef",
+      "sha256": "d2184b996991631490d7e82c19a7bd3310576c16fa2da2678819cac0a50f55c2",
       "anchorMatched": true
     },
     {
@@ -260,7 +263,7 @@
     },
     {
       "path": "packages/protocol/src/groups/server.ts",
-      "sha256": "3f0a3318066cadfd2e0d43d5b93828a85f09c33fac9463ca6824e9dbdbf81fb7",
+      "sha256": "c10b35d965644d521a7b75251ee01e9b82bb7741420e2b786cc43c25d88a363e",
       "anchorMatched": true
     },
     {
@@ -295,7 +298,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "c6d4f6277624e44dc1175a4c9e047a36d3642561719bd8810637f05ecd31dfb4",
+      "sha256": "7fe109a01d61a86a998e6dd2cc2f1419924a65c07ecde2e4dbe5c4e7a4ea9935",
       "anchorMatched": true
     },
     {
@@ -330,7 +333,7 @@
     },
     {
       "path": "packages/httpapi-codegen/src/index.ts",
-      "sha256": "c5e2f95f651965a788b6415af50f9a52a18a30578f2fc6da89be6f6a4b02de7d",
+      "sha256": "04c46d3e1d0d4fa551dcdac9090dba0e0b54cace0c1e408a1d455a0d7449acdf",
       "anchorMatched": true
     },
     {

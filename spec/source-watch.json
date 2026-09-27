@@ -12,8 +12,8 @@
     },
     {
       "path": "packages/server/src/middleware/authorization.ts",
-      "sha256": "c84f217a02bd2d2a839673308f9e268a2a68a1ac9f8c47c9c9e52f7f666e1486",
-      "behavior": "A non-empty ticket query on a PTY connect skips the credential check, so the hand-written door authenticates the WebSocket upgrade with the ticket alone.",
+      "sha256": "61e1cb8df3e9f61803acbf25f4056349ad67ed8109f9bb63a7e474fc7c1cb0ef",
+      "behavior": "A non-empty ticket query on a PTY connect, and a pairing link under /auth/connect/, skip the credential check, so the hand-written door authenticates the WebSocket upgrade with the ticket alone and a pairing code is redeemed with no other credential.",
       "anchor": {
         "type": "contains",
         "text": "hasPtyConnectTicketURL(url) || hasPersistentPtyConnectTicketURL(url)"
@@ -57,7 +57,7 @@
     },
     {
       "path": "packages/server/src/routes.ts",
-      "sha256": "9d874bdcf7d3a234740eab520ac306fc364e30dc90ffd234b60c4e81bf5f0108",
+      "sha256": "024a5ed216e01b68333d2c9bfad9f62e6c6233ad3b17f2b7af1bdb7cada8e4c5",
       "behavior": "The PTY ticket service and the persistent-PTY service are wired into the server layer graph.",
       "anchor": {
         "type": "contains",
@@ -138,7 +138,7 @@
     },
     {
       "path": "packages/cli/package.json",
-      "sha256": "11a23b40e2f401cad09af54bcd68fec312424726b5bc29946ab33f3f501fb1ea",
+      "sha256": "899bacadbbf480264163f05b9c222e79f44074ca85d88aca0117fff4a990df04",
       "behavior": "The CLI package bin map names \u0022opencode\u0022 as the installed command and keeps \u0022opencode2\u0022 as a transitional alias of the same launcher, so the shipped launcher default resolves \u0022opencode\u0022 from PATH.",
       "anchor": {
         "type": "contains",
@@ -147,7 +147,7 @@
     },
     {
       "path": "packages/core/package.json",
-      "sha256": "1368e0293971cbb81d11a57d95df150e6fe4d314d151021c1f29aa629711092f",
+      "sha256": "cca5224ae1a17d4a9991da955ac12a4c09697d58111f7edf20806b0c47b8b332",
       "behavior": "The opencode-pty daemon dependency is pinned at 0.1.13, which fixes the daemon protocol the persistent-PTY door speaks.",
       "anchor": {
         "type": "contains",
@@ -156,8 +156,8 @@
     },
     {
       "path": "packages/server/src/process.ts",
-      "sha256": "4cbd0a730e0c46bc1ebddb5a16c68ea605ce417be231047c2e6005079a6c54ec",
-      "behavior": "A ticketed PTY connect is admitted before the server reports ready. Uncredentialed or wrongly credentialed requests above the API layer receive an empty 401 with the Basic challenge. While the server is not ready, GET /api/info is answered by the process layer under Basic auth with the version, pid, urls, and paths.tmp body at 500 when failed or 503 when starting or stopping, the latter two with retry-after: 1; once ready the request reaches the API group\u0027s server.info handler, which answers the same shape at 200.",
+      "sha256": "f92d9d249f8781ddecb26354e3d4f2e439f1152f3a946aebc9b8b85fdf090d9e",
+      "behavior": "A ticketed PTY connect is admitted before the server reports ready. Uncredentialed or wrongly credentialed requests above the API layer receive a 401 whose JSON body is the UnauthorizedError the document declares, with the Basic challenge only for requests that are not browser fetches. While the server is not ready, GET /api/info is answered by the process layer under Basic auth with the version, pid, urls, and paths.tmp body at 500 when failed or 503 when starting or stopping, the latter two with retry-after: 1; once ready the request reaches the API group\u0027s server.info handler, which answers the same shape at 200.",
       "anchor": {
         "type": "contains",
         "text": "!hasPtyConnectTicketURL(url)"
@@ -219,8 +219,8 @@
     },
     {
       "path": "packages/server/src/auth.ts",
-      "sha256": "278c66df3831c169756805391dca8fb6a2dc83b741ed58956d6cd353ee6ab3ef",
-      "behavior": "HTTP Basic credentials are checked against the fixed username opencode and the configured password, and authentication is required whenever a non-empty password is configured, which fixes the SDK\u0027s default Username and the rule that a CLI-started server always needs a password.",
+      "sha256": "d2184b996991631490d7e82c19a7bd3310576c16fa2da2678819cac0a50f55c2",
+      "behavior": "HTTP Basic credentials are checked against the fixed username opencode and the configured password, or a session token a pairing link issued, which the server accepts anywhere the password is, and authentication is required whenever a non-empty password is configured, which fixes the SDK\u0027s default Username and the rule that a CLI-started server always needs a password.",
       "anchor": {
         "type": "contains",
         "text": "username: \u0022opencode\u0022"
@@ -417,7 +417,7 @@
     },
     {
       "path": "packages/protocol/src/groups/server.ts",
-      "sha256": "3f0a3318066cadfd2e0d43d5b93828a85f09c33fac9463ca6824e9dbdbf81fb7",
+      "sha256": "c10b35d965644d521a7b75251ee01e9b82bb7741420e2b786cc43c25d88a363e",
       "behavior": "The info answer carries version, pid, urls, and paths.tmp; pid may be zero for a runtime without an OS process identity. The background-service probe revalidates the registered process identity and expected version.",
       "anchor": {
         "type": "contains",
@@ -480,7 +480,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "c6d4f6277624e44dc1175a4c9e047a36d3642561719bd8810637f05ecd31dfb4",
+      "sha256": "7fe109a01d61a86a998e6dd2cc2f1419924a65c07ecde2e4dbe5c4e7a4ea9935",
       "behavior": "The workspace catalog pins the Effect release the protocol document is generated with, whose JSON Schema encoding of StructWithRest (a struct\u0027s properties beside a single-element allOf carrying only the rest\u0027s additionalProperties) the projector admits as an open object, and whose union decode (SchemaAST Union.getParser: literal sentinels, then the first member in declaration order that decodes) the structural union first-match arm mirrors, as tools/oracles/first-match-union.ts proves; an Effect bump is reviewed against both, and the oracle re-run, before the snapshot moves.",
       "anchor": {
         "type": "contains",
@@ -543,7 +543,7 @@
     },
     {
       "path": "packages/httpapi-codegen/src/index.ts",
-      "sha256": "c5e2f95f651965a788b6415af50f9a52a18a30578f2fc6da89be6f6a4b02de7d",
+      "sha256": "04c46d3e1d0d4fa551dcdac9090dba0e0b54cace0c1e408a1d455a0d7449acdf",
       "behavior": "Upstream codegen turns a route whose path ends in a single trailing wildcard into a required string input named path, or wildcard when an input already takes path, and fills it with encodePath: each slash-separated segment through encodeURIComponent; the generator route-tail rule mirrors both (ADR-0029), and tools/oracles/wildcard-path.ts re-proves the encoding against the generated client.",
       "anchor": {
         "type": "contains",

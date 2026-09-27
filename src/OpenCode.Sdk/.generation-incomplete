@@ -1,5 +1,5 @@
 Generation is complete at the declared coverage; packages may be published.
-Selected operations: 134
+Selected operations: 136
 Pending operations: 0
 Declined operations: 0
 Transport-owned operations: 2
@@ -80,7 +80,9 @@ Selected:
 - pty.update
 - reference.list
 - rpc.call
+- server.connect
 - server.info
+- server.pair
 - session.active
 - session.background
 - session.command

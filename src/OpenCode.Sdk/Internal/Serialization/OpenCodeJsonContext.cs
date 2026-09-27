@@ -272,6 +272,8 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(ModelUpdated))]
 [JsonSerializable(typeof(ModelVariant))]
 [JsonSerializable(typeof(ModelsDevRefreshed))]
+[JsonSerializable(typeof(PairingCode))]
+[JsonSerializable(typeof(PairingSession))]
 [JsonSerializable(typeof(PermissionAsked))]
 [JsonSerializable(typeof(PermissionAskedData))]
 [JsonSerializable(typeof(PermissionEffect))]

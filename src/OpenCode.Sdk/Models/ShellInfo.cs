@@ -60,6 +60,13 @@ public sealed record ShellInfo
     public double? Exit { get; init; }
 
     /// <summary>
+    /// Gets the signal value.
+    /// </summary>
+    [JsonPropertyName("signal")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Signal { get; init; }
+
+    /// <summary>
     /// Gets the metadata value.
     /// </summary>
     [JsonPropertyName("metadata")]

@@ -74,7 +74,9 @@ pty.remove
 pty.update
 reference.list
 rpc.call
+server.connect
 server.info
+server.pair
 session.active
 session.background
 session.command

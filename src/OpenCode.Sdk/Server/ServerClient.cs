@@ -26,6 +26,22 @@ public class ServerClient
     private Pipeline Pipeline => _pipeline ?? throw MockSeam.CreateError("ServerClient", "Pipeline");
 
     /// <summary>
+    /// Create pairing code. Create a short-lived, single-use code for a /auth/connect/:code pairing link.
+    /// </summary>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ServerPairResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>server.pair</c>: <c>POST /api/pair</c>.
+    /// </remarks>
+    public virtual Task<ServerPairResponse> CreatePairingCodeAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        return Pipeline.ExecuteAsync(HttpMethod.Post, OpenCodeRoutes.Server.CreatePairingCode, ServerPairResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
     /// Get server info. Return the server identity, connection URLs, paths, and readiness status.
     /// </summary>
     /// <param name = "requestOptions">The per-call options.</param>
@@ -39,5 +55,23 @@ public class ServerClient
     public virtual Task<ServerInfoResponse> GetInfoAsync(OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Server.GetInfo, ServerInfoResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Redeem pairing code. Redeem a pairing code. Browsers receive a session cookie and a redirect to the web app; requests that accept JSON receive a session token to use as the password.
+    /// </summary>
+    /// <param name = "code">The &apos;code&apos; route value.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;ServerConnectResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>server.connect</c>: <c>GET /auth/connect/{code}</c>.
+    /// </remarks>
+    public virtual Task<ServerConnectResponse> RedeemPairingCodeAsync(string code, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(code);
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.Server.RedeemPairingCode(code), ServerConnectResponseAdapter.Instance, requestOptions, cancellationToken);
     }
 }

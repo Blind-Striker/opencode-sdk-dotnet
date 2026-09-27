@@ -281,6 +281,16 @@
       "reason": "The group singular 'fs' does not pluralize naively, exactly like pty.list; the reviewed subject is the directory's entries."
     },
     {
+      "operationId": "server.pair",
+      "methodName": "CreatePairingCodeAsync",
+      "reason": "Upstream summary 'Create pairing code': the operation issues a short-lived, single-use code; pair is not a grammar verb, and the subject is the code the caller hands to another client."
+    },
+    {
+      "operationId": "server.connect",
+      "methodName": "RedeemPairingCodeAsync",
+      "reason": "Upstream summary 'Redeem pairing code': the operation exchanges a pairing code for a session token; the mechanical GET name GetConnectAsync would name the route segment, not the action."
+    },
+    {
       "operationId": "experimental.fs.write",
       "methodName": "WriteFileAsync",
       "reason": "The operation's own verb is write (upstream summary 'Write file'); the grammar has no write verb and the mechanical POST fallback would name the method by its HTTP verb. It pairs with fs.read's ReadFileAsync."
@@ -633,6 +643,12 @@
   ],
   "redactedMembers": [
     {
+      "model": "PairingCode",
+      "property": "code",
+      "redact": true,
+      "reason": "Upstream's recorder masks code only as a URL query parameter, not as a JSON field, but server.pair issues a single-use code that /auth/connect/:code redeems without any other credential for a session token accepted anywhere the server password is; for its five-minute life the code is itself a credential."
+    },
+    {
       "model": "IntegrationConnectKeyRequest",
       "property": "key",
       "redact": true,
@@ -734,6 +750,8 @@
     "fs.list": "Entries",
     "fs.find": "Entries",
     "experimental.fs.write": "File",
+    "server.pair": "PairingCode",
+    "server.connect": "PairingSession",
     "vcs.diff": "Diffs",
     "session.diff": "Diffs",
     "server.info": "ServerInfo"

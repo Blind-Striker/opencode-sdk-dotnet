@@ -153,19 +153,18 @@ before the SDK is regenerated — and the `default` arm above catches any typed 
 write a case for.
 
 `Error` can also legitimately be `null`: the server answered with a failure status but no body the
-SDK could type. `RawBody` then has whatever the server did send — which is sometimes nothing at
-all, because a failure answered above the API layer can carry an empty body. The next section is
-exactly that case.
+SDK could type. `RawBody` then has whatever the server did send, which can be nothing at all.
 
 ### A 401 with no credential
 
-The one failure whose body tells you nothing. An `opencode serve` process **always** runs with a
-password — the one you set through `OPENCODE_PASSWORD`, or one it generates and prints as
-`server password <pw>` — and it rejects an uncredentialed request before the API layer ever runs.
-The answer is a bare `401` with an empty body and a `WWW-Authenticate: Basic` challenge: `Error` is
-`null`, `RawBody` is empty, and the typed `UnauthorizedError` the spec declares never arrives.
+An `opencode serve` process **always** runs with a password — the one you set through
+`OPENCODE_PASSWORD`, or one it generates and prints as `server password <pw>` — and it rejects an
+uncredentialed request before the API layer runs. The answer is a `401` carrying the declared
+`UnauthorizedError` (`Authentication required`) with a `WWW-Authenticate: Basic` challenge, so
+`Error` is typed — but the same answer comes back whether the client sent no credential or a wrong
+one, so the body cannot tell you which mistake you made.
 
-Because the wire says nothing, the SDK does. When a call answers 401 *and* the client was built
+The SDK can. When a call answers 401 *and* the client was built
 with `Password` left `null`, the exception message carries one extra sentence:
 
 ```text
@@ -177,7 +176,7 @@ one you set through OPENCODE_PASSWORD, in OpenCodeClientOptions.Password.
 It is scoped as tightly as it reads: 401 only, and only when no password was configured. A
 credential the server *rejected* is a different mistake and keeps the plain message. And it is a
 message, not a new member — the `NoThrow` envelope is unchanged, where `Status == 401` on a client
-you built without a password is the same signal. Observed on `@opencode/cli@2.0.2`.
+you built without a password is the same signal.
 
 ### When a worktree remove is refused
 
@@ -191,7 +190,7 @@ still have removed part of the worktree. `Data.ForceRequired` says which kind of
 | `false` | The server ran `git worktree remove` and git failed part way. Git does not roll back, so the worktree's files and its git metadata can already be gone while the directory and the inventory row remain | Read `Data.Message` — it is git's own stderr — and see below |
 | `null` | The server refused before it ran git — or, after a partial removal, found no git worktree left at the directory (`Worktree directory unavailable`) | Fix the request; after a partial removal, recover as below |
 
-The `false` arm is the surprising one. Observed on Windows at the pin (`@opencode/cli@2.0.15`):
+The `false` arm is the surprising one. Observed on Windows on `@opencode/cli@2.0.15`, whose worktree and location sources the current pin keeps unchanged:
 `Data.Message` is git's `error: failed to delete '<dir>': Permission denied`, and the directory is
 left empty. The process that holds it is the server's own. The server keeps a location alive for
 every directory it has served — one request addressed to the worktree, for example through a

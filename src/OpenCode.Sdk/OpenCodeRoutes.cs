@@ -1792,9 +1792,32 @@ public static class OpenCodeRoutes
     public static class Server
     {
         /// <summary>
+        /// The &apos;POST /api/pair&apos; route.
+        /// </summary>
+        public const string CreatePairingCode = "/api/pair";
+        /// <summary>
         /// The &apos;GET /api/info&apos; route.
         /// </summary>
         public const string GetInfo = "/api/info";
+        /// <summary>
+        /// The &apos;GET /auth/connect/{code}&apos; route template.
+        /// </summary>
+        public const string RedeemPairingCodeTemplate = "/auth/connect/{code}";
+        /// <summary>
+        /// Builds the &apos;/auth/connect/{code}&apos; route.
+        /// </summary>
+        /// <param name = "code">The &apos;code&apos; route value.</param>
+        /// <returns>The escaped route.</returns>
+        public static string RedeemPairingCode(string code)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(code);
+            if (code is "." or "..")
+            {
+                throw new ArgumentException("Route values must not be dot segments.", nameof(code));
+            }
+
+            return "/auth/connect/" + RouteValuePolicy.Escape(code, nameof(code));
+        }
     }
 
     /// <summary>
