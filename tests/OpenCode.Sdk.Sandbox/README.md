@@ -5,43 +5,38 @@ debugger. It rides the repository's full convention set (analyzers, `.editorconf
 gate) — unlike `.scratchpad/`, which remains the home for throwaway prototypes that answer a
 question and disappear.
 
-Configuration comes from environment variables, prefilled for the IDE by
-`Properties/launchSettings.json` (profiles `sandbox-session-log` and `sandbox-events`):
-
-| Variable | Meaning |
-|---|---|
-| `OPENCODE_SANDBOX_ENDPOINT` | Absolute server endpoint (required) |
-| `OPENCODE_PASSWORD` / `OPENCODE_SERVER_PASSWORD` | Resolved by sandbox code and passed as `OpenCodeClientOptions.Password` — the SDK itself reads no environment |
-
 ## Running
 
-Start a server with a fixed password so the checked-in profile matches (`serve` adopts the
-same `OPENCODE_PASSWORD` variable; without it the server generates and prints a
-random one):
+It needs only the `opencode` CLI on `PATH`. By default the sandbox connects the way the CLI does:
+`OpenCodeServer.EnsureAsync` reuses your registered background service, or starts one when none is
+usable. There is no endpoint, password, or port to set, and the server uses your own opencode
+configuration, so the providers you configured are there. A service the sandbox started keeps
+running afterwards, exactly as it would after `opencode`; `opencode service stop` ends it.
 
 ```sh
-OPENCODE_PASSWORD=123456 opencode serve --hostname 127.0.0.1 --port 4096
+dotnet run --project tests/OpenCode.Sdk.Sandbox                  # the breadth walkthrough
+dotnet run --project tests/OpenCode.Sdk.Sandbox -- --stream      # follow one session's log
+dotnet run --project tests/OpenCode.Sdk.Sandbox -- --events      # the global event bus
+dotnet run --project tests/OpenCode.Sdk.Sandbox -- --paginate <sessionId>
+dotnet run --project tests/OpenCode.Sdk.Sandbox -- --standalone  # a private server the SDK starts
 ```
 
-Then F5 with one of the sandbox profiles, or run either stream mode directly:
+The `Properties/launchSettings.json` profiles carry the same flags for F5, and the first one runs
+the walkthrough.
+
+**A server you run yourself:** add `--endpoint <url>`. Its password comes from `OPENCODE_PASSWORD`,
+the variable `opencode serve` itself reads:
 
 ```sh
-dotnet run --project tests/OpenCode.Sdk.Sandbox -- --stream
-dotnet run --project tests/OpenCode.Sdk.Sandbox -- --events
+OPENCODE_PASSWORD=your-password opencode serve --hostname 127.0.0.1 --port 4096
+OPENCODE_PASSWORD=your-password dotnet run --project tests/OpenCode.Sdk.Sandbox -- --endpoint http://127.0.0.1:4096
 ```
 
-**Pointing the sandbox at a server that is not the checked-in one takes
-`--no-launch-profile`.** `Properties/launchSettings.json` prefills
-`OPENCODE_SANDBOX_ENDPOINT` at port 4096, and `dotnet run` applies the default profile unless
-told not to, so without the flag the run silently addresses 4096 whatever the environment says.
-The prefill stays: it is what makes the zero-argument F5 and `dotnet run` work against the local
-server every other line here assumes. A second fact belongs beside it — the standing walkthrough's
-earlier session legs answer 500 on a server with no provider configured, and because those legs
-run first, the PTY and persistent PTY legs are unreachable there. That is the real server's
-answer, not something the walkthrough should swallow: it asserts what the server says, so an
-isolated provider-less server is a server this leg cannot be driven against. `PersistentPtyLiveTests`
-is what proves the persistent PTY round trip; on a Windows workstation that needs a Linux-hosted
-server (`docs/engineering/developing-on-windows.md`).
+The walkthrough asserts what the server answers, so it needs a server with a provider configured:
+its early session legs answer 500 on a provider-less server, such as an isolated test server, and
+the PTY and persistent PTY legs after them are then never reached. `PersistentPtyLiveTests` is what
+proves the persistent PTY round trip; on a Windows workstation that needs a Linux-hosted server
+(`docs/engineering/developing-on-windows.md`).
 
 The stream example composes through the Extensions package:
 `AddOpenCode` registers one singleton client family, and the Generic Host injects its
@@ -56,7 +51,7 @@ standing breadth walkthrough without a mode flag creates a session and supplies 
 events. The bus has no replay or resume contract: events during disconnection are missed, and a slow
 consumer can overflow and fail the stream. Ctrl+C exercises the same host cancellation path.
 
-`--stream` and `--events` are mutually exclusive. Run without either flag to keep driving the
+The mode flags are mutually exclusive. Run without one to keep driving the
 standing breadth walkthrough: status, session create/list/get, message list, experimental export
 with its sanitize query, permission create/get/reply, compact and fork, interrupt and DELETE
 revert-clear, experimental instructions and MCP mutations, PTY update, and a typed
@@ -94,13 +89,12 @@ ppty-shutdown: status=204 isError=False
 
 ## Standalone server demo (`--standalone`)
 
-`StandaloneServerWalkthrough` is the M4 launcher demo leg: unlike every mode above, it needs no
-`OPENCODE_SANDBOX_ENDPOINT` and no ambient server — the SDK starts and owns the server itself
-through `OpenCodeServer.StartAsync` (the standalone-start connection mode; `docs/architecture/
-client-runtime.md` §Connection modes), then calls `CreateClient()` and `Server.GetInfoAsync` under a
-5-second-bounded probe, the same recipe door 2 (explicit endpoint) would run against a
-caller-supplied endpoint. It is checked before the `OPENCODE_SANDBOX_ENDPOINT` gate, so it is the
-only mode reachable without a running server.
+`StandaloneServerWalkthrough` is the launcher demo: the SDK starts a private `opencode serve` and
+owns it through `OpenCodeServer.StartAsync` (the standalone-start connection mode;
+`docs/architecture/client-runtime.md` §Connection modes), resolved from `PATH` the way a shell
+resolves it, then calls `CreateClient()` and `Server.GetInfoAsync` under a 5-second-bounded probe.
+Disposing the server stops it. The distributed-build consumer leg runs this mode against the
+published CLI.
 
 Status is followed by `ModelSelectionWalkthrough`, the executable "choosing a model" recipe.
 It observes provider/model catalogs, creates a session with an available `ModelRef { ProviderId, Id }`,
@@ -108,25 +102,6 @@ and removes it. Catalogs can still be incomplete during asynchronous plugin acti
 (`CONTEXT.md`, Plugin activation). An empty observation prints `model: none currently available`
 and returns successfully; it does not prove that activation has settled or that no provider is
 configured.
-
-`OPENCODE_SANDBOX_SERVER_COMMAND` overrides the launched command (`|`-separated, to survive paths
-with spaces); unset uses the product default (`opencode serve`, resolved from `PATH` the way a
-shell would). Run from the
-repository root against the pinned submodule source:
-
-```sh
-OPENCODE_SANDBOX_SERVER_COMMAND="bun|--cwd=$(pwd)/external/opencode/packages/cli|src/index.ts|serve" \
-  dotnet run --project tests/OpenCode.Sdk.Sandbox --no-launch-profile -- --standalone
-```
-
-The `--cwd=<abs>` token is load-bearing, not decorative: the source-run server's workspace/JSX
-preload discovery (`@opentui/solid/preload`, wired through `packages/cli/bunfig.toml`) walks from
-bun's own process working directory, not from the entry file's path — an absolute entry path with
-the launcher's default (unset) working directory reproduces upstream's own `bun run --cwd
-packages/cli src/index.ts` shape one token short and fails before readiness with `Cannot find
-module 'react/jsx-dev-runtime'`. This is the same root cause `PinnedOpenCodeServerFixture` anchors
-around via `OpenCodeServerOptions.WorkingDirectory` for the test suite (Task 2); the sandbox demo
-reaches the identical fix by folding `--cwd` into the command tokens themselves.
 
 ## Pointing the live suite at another build of the server
 
@@ -141,8 +116,7 @@ $env:OPENCODE_SDK_TESTS_SERVER_COMMAND = "opencode|serve"
 dotnet test tests/OpenCode.Sdk.Tests --configuration Release --no-build --framework net10.0
 ```
 
-The value is `|`-separated for the same reason `OPENCODE_SANDBOX_SERVER_COMMAND` is: a path with
-spaces survives as one token. The first token is resolved by the SDK's own launcher from `PATH`
+The value is `|`-separated so that a path with spaces survives as one token. The first token is resolved by the SDK's own launcher from `PATH`
 (`PATHEXT` included, so an npm `.cmd` shim starts), so a bare `opencode` is the whole value it
 needs, and the fixture prints which command it started. The distributed-build consumer leg
 (`.github/workflows/consumer-leg.yml`) is the standing user: that is how the published
@@ -164,5 +138,5 @@ The same external-endpoint mode runs the suite against a server hosted elsewhere
 case is a Windows workstation driving the persistent PTY legs against a WSL2-hosted server, because
 the `opencode-pty` daemon ships no win32 package; that recipe and its gotchas live in
 `docs/engineering/developing-on-windows.md`. The sandbox can be pointed at such an endpoint with
-`--no-launch-profile`, but it is not the proof: the walkthrough's earlier session legs answer 500 on
-a provider-less isolated server, so it never reaches the persistent PTY leg there.
+`--endpoint`, but it is not the proof: the walkthrough's earlier session legs answer 500 on a
+provider-less isolated server, so it never reaches the persistent PTY leg there.

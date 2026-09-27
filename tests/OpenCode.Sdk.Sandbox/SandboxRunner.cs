@@ -6,65 +6,28 @@ using OpenCode.Sdk.Models;
 namespace OpenCode.Sdk.Sandbox;
 
 /// <summary>
-/// The standing breadth walkthrough entry point: everything that needs an ambient server reached
-/// through <c>OPENCODE_SANDBOX_ENDPOINT</c> (the standalone-server demo in
-/// <see cref="StandaloneServerWalkthrough"/> needs none, so <c>Program.cs</c> branches to that
-/// leg before reaching this one). Split out of <c>Program.cs</c>'s top-level statements purely to
-/// keep each mode's dispatch under the repository's method-size and complexity gates; the
-/// behavior is unchanged from a single top-level <c>Main</c>.
+/// Runs every mode that talks to a server <see cref="SandboxConnection"/> reaches (the
+/// <c>--standalone</c> demo starts its own, so <c>Program.cs</c> sends it to
+/// <see cref="StandaloneServerWalkthrough"/> instead). Split out of <c>Program.cs</c>'s top-level
+/// statements to keep each mode's dispatch under the repository's method-size and complexity
+/// gates.
 /// </summary>
 internal static class SandboxRunner
 {
-    public static async Task<int> RunAsync(string[] args)
+    public static async Task<int> RunAsync(SandboxArguments arguments)
     {
-        var endpoint = Environment.GetEnvironmentVariable("OPENCODE_SANDBOX_ENDPOINT");
-        if (string.IsNullOrWhiteSpace(endpoint))
-        {
-            await Console
-                .Error.WriteLineAsync(
-                    "Set OPENCODE_SANDBOX_ENDPOINT to an absolute server endpoint; the launchSettings.json profile prefills it.")
-                .ConfigureAwait(false);
-            await Console
-                .Error.WriteLineAsync(
-                    "Required for an opencode serve endpoint: OPENCODE_PASSWORD or OPENCODE_SERVER_PASSWORD (resolved here; the SDK reads no environment).")
-                .ConfigureAwait(false);
-            return 1;
-        }
+        await using var connection = await SandboxConnection.OpenAsync(arguments.Endpoint).ConfigureAwait(false);
+        Console.WriteLine($"server:  {connection.Description}");
 
-        // The consumer owns environment resolution (upstream's own layering; the CLI does the
-        // same): the SDK itself never reads environment variables.
-        var password = Environment.GetEnvironmentVariable("OPENCODE_PASSWORD")
-            ?? Environment.GetEnvironmentVariable("OPENCODE_SERVER_PASSWORD");
+        var builder = Host.CreateApplicationBuilder();
+        _ = builder.Services.AddOpenCode(connection.Configure);
 
-        var streamMode = args.Contains("--stream", StringComparer.Ordinal);
-        var eventMode = args.Contains("--events", StringComparer.Ordinal);
-        var paginationMode = args.Contains("--paginate", StringComparer.Ordinal);
-        var selectedModeCount = (streamMode ? 1 : 0) + (eventMode ? 1 : 0) + (paginationMode ? 1 : 0);
-        if (selectedModeCount > 1)
-        {
-            await Console.Error.WriteLineAsync("Choose only one of --stream, --events, or --paginate.").ConfigureAwait(false);
-            return 1;
-        }
-
-        var hostArgs = args
-            .Where(static argument => !string.Equals(argument, "--stream", StringComparison.Ordinal)
-                                      && !string.Equals(argument, "--events", StringComparison.Ordinal)
-                                      && !string.Equals(argument, "--paginate", StringComparison.Ordinal))
-            .ToArray();
-
-        var builder = Host.CreateApplicationBuilder(hostArgs);
-        _ = builder.Services.AddOpenCode(options =>
-        {
-            options.Endpoint = new Uri(endpoint);
-            options.Password = string.IsNullOrWhiteSpace(password) ? null : password;
-        });
-
-        if (streamMode)
+        if (arguments.Mode is SandboxMode.Stream)
         {
             _ = builder.Services.AddSingleton<SessionLogWorker>();
             _ = builder.Services.AddHostedService(static provider => provider.GetRequiredService<SessionLogWorker>());
         }
-        else if (eventMode)
+        else if (arguments.Mode is SandboxMode.Events)
         {
             _ = builder.Services.AddSingleton<EventBusWorker>();
             _ = builder.Services.AddHostedService(static provider => provider.GetRequiredService<EventBusWorker>());
@@ -72,12 +35,12 @@ internal static class SandboxRunner
 
         using var host = builder.Build();
 
-        if (streamMode)
+        if (arguments.Mode is SandboxMode.Stream)
         {
             return await RunStreamModeAsync(host).ConfigureAwait(false);
         }
 
-        if (eventMode)
+        if (arguments.Mode is SandboxMode.Events)
         {
             return await RunEventModeAsync(host).ConfigureAwait(false);
         }
@@ -87,8 +50,8 @@ internal static class SandboxRunner
         var health = await client.Server.GetInfoAsync().ConfigureAwait(false);
         Console.WriteLine($"health:  status={health.Status} version={health.ServerInfo.Version} pid={health.ServerInfo.Pid}");
 
-        return paginationMode
-            ? await RunPaginationModeAsync(client).ConfigureAwait(false)
+        return arguments.Mode is SandboxMode.Paginate
+            ? await RunPaginationModeAsync(client, arguments.SessionId!).ConfigureAwait(false)
             : await RunBreadthWalkthroughAsync(host, client).ConfigureAwait(false);
     }
 
@@ -106,15 +69,8 @@ internal static class SandboxRunner
         return worker.Failure is null ? 0 : 1;
     }
 
-    private static async Task<int> RunPaginationModeAsync(OpenCodeClient client)
+    private static async Task<int> RunPaginationModeAsync(OpenCodeClient client, string sessionId)
     {
-        var sessionId = Environment.GetEnvironmentVariable("OPENCODE_PAGINATION_SESSION_ID");
-        if (string.IsNullOrWhiteSpace(sessionId))
-        {
-            await Console.Error.WriteLineAsync("Set OPENCODE_PAGINATION_SESSION_ID for --paginate.").ConfigureAwait(false);
-            return 1;
-        }
-
         var count = 0;
         var sessionClient = client.Sessions.GetSessionClient(sessionId);
 

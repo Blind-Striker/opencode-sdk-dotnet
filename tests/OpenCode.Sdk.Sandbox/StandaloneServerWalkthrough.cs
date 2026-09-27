@@ -3,26 +3,16 @@ using System.Globalization;
 namespace OpenCode.Sdk.Sandbox;
 
 /// <summary>
-/// The M4 demo leg: the SDK starts the server itself and calls health — no
-/// OPENCODE_SANDBOX_ENDPOINT, no ambient server. OPENCODE_SANDBOX_SERVER_COMMAND ('|'-separated
-/// to survive paths with spaces) overrides the command; unset uses the product default
-/// (<c>opencode serve</c>, resolved from PATH the way a shell would — PATHEXT included on
-/// Windows, so an npm .cmd shim starts). Door 2 (explicit endpoint) is the same tail without
-/// StartAsync:
-/// construct the client against a known endpoint and run the same bounded health probe.
+/// The launcher demo (<c>--standalone</c>): the SDK starts a private <c>opencode serve</c> through
+/// <see cref="OpenCodeServer.StartAsync"/>, resolved from <c>PATH</c> the way a shell resolves it
+/// (<c>PATHEXT</c> included on Windows, so an npm <c>.cmd</c> shim starts), calls health, runs the
+/// model-selection recipe, and stops the server on dispose.
 /// </summary>
 internal static class StandaloneServerWalkthrough
 {
     public static async Task<int> RunAsync()
     {
-        var options = new OpenCodeServerOptions();
-        var commandVariable = Environment.GetEnvironmentVariable("OPENCODE_SANDBOX_SERVER_COMMAND");
-        if (!string.IsNullOrWhiteSpace(commandVariable))
-        {
-            options.Command = commandVariable.Split('|', StringSplitOptions.RemoveEmptyEntries);
-        }
-
-        await using var server = await OpenCodeServer.StartAsync(options).ConfigureAwait(false);
+        await using var server = await OpenCodeServer.StartAsync().ConfigureAwait(false);
         Console.WriteLine(
             $"started: {server.Endpoint} (pid {server.ProcessId.ToString(CultureInfo.InvariantCulture)})");
 
