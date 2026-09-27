@@ -1,0 +1,16 @@
+is_global = true
+
+# Compilation-wide analyzer settings. A rule goes here, not in .editorconfig, only when it must stop
+# running: Roslyn skips an analyzer only when every diagnostic it reports is off for the whole
+# compilation, and a file-scoped .editorconfig section hides a diagnostic without skipping the work.
+
+# VSTHRD010 (invoke single-threaded types on the main thread) cannot fire in this repository. It
+# reports a member only when a vs-threading.MembersRequiringMainThread or
+# vs-threading.MainThreadAssertingMethods list names it. Microsoft.VisualStudio.Threading.Analyzers
+# 18.7.23 ships the first list empty and the second with only WPF's Dispatcher.VerifyAccess, and no
+# project references WPF or the Visual Studio SDK. The analyzer has no early exit, so it ran on every
+# compilation: 7-12% of analyzer time. Turning it off shortened the cold CI build by 40 s on Windows
+# and 44 s on macOS, and by an amount within noise on Linux (2026-09-26, run 36269677228).
+# Winner: the absence of main-thread-affine types. Remove this entry when a vs-threading.*.txt list,
+# a WPF reference, or a Visual Studio SDK package enters the build.
+dotnet_diagnostic.VSTHRD010.severity = none
