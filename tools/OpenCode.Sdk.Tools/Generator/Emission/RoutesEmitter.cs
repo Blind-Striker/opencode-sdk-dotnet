@@ -184,7 +184,7 @@ internal static class RoutesEmitter
                 .WithInitializer(SyntaxFactory.EqualsValueClause(SyntaxFactory.ObjectCreationExpression(
                         TypeSyntaxEmitter.EmitNamed("QueryStringBuilder"))
                     .WithArgumentList(SyntaxFactory.ArgumentList()))))));
-        foreach (var property in operation.QueryRequest.Properties)
+        foreach (var property in operation.QueryRequest.Properties.Where(static property => property.Kind is not QueryValueKind.RouteTail))
         {
             var arguments = new List<ArgumentSyntax>
             {
@@ -225,6 +225,7 @@ internal static class RoutesEmitter
         QueryValueKind.BooleanText => "AddBoolean",
         QueryValueKind.SessionParentFilter => "AddParentFilter",
         QueryValueKind.Location => "AddLocation",
+        QueryValueKind.RouteTail => throw new InvalidOperationException("The route tail fills the path, never the query."),
         _ => throw new InvalidOperationException($"Query value kind '{kind}' has no query-builder method."),
     };
 
@@ -262,9 +263,23 @@ internal static class RoutesEmitter
             position = start + token.Length;
         }
 
-        if (position < template.Length)
+        var tail = operation.QueryRequest?.Properties.SingleOrDefault(static property => property.Kind is QueryValueKind.RouteTail);
+        var end = tail is null ? template.Length : template.Length - 1;
+        if (position < end)
         {
-            pieces.Add(StringLiteral(template[position..]));
+            pieces.Add(StringLiteral(template[position..end]));
+        }
+
+        if (tail is not null)
+        {
+            // The trailing '*' takes the request's route-tail member, escaped segment by segment.
+            pieces.Add(EmissionSyntax.Invocation(
+                EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("RouteValuePolicy"), "EscapeTail"),
+                SyntaxFactory.Argument(EmissionSyntax.MemberAccess(
+                    SyntaxFactory.IdentifierName(ReservedNamePolicy.RequestParameter), tail.PropertyName)),
+                SyntaxFactory.Argument(EmissionSyntax.Invocation(
+                    SyntaxFactory.IdentifierName("nameof"),
+                    SyntaxFactory.Argument(SyntaxFactory.IdentifierName(ReservedNamePolicy.RequestParameter))))));
         }
 
         return pieces.Aggregate(static (left, right) =>

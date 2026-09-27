@@ -1,0 +1,78 @@
+[
+  {
+    "path": "README.md",
+    "route": "/api/fs/read/README.md"
+  },
+  {
+    "path": "src/app.ts",
+    "route": "/api/fs/read/src/app.ts"
+  },
+  {
+    "path": "a/b/c/d.txt",
+    "route": "/api/fs/read/a/b/c/d.txt"
+  },
+  {
+    "path": "my file.ts",
+    "route": "/api/fs/read/my%20file.ts"
+  },
+  {
+    "path": "notes #1.md",
+    "route": "/api/fs/read/notes%20%231.md"
+  },
+  {
+    "path": "100% done.txt",
+    "route": "/api/fs/read/100%25%20done.txt"
+  },
+  {
+    "path": "query?x=1&y=2.txt",
+    "route": "/api/fs/read/query%3Fx%3D1%26y%3D2.txt"
+  },
+  {
+    "path": "plus+sign.txt",
+    "route": "/api/fs/read/plus%2Bsign.txt"
+  },
+  {
+    "path": "colon:semicolon;.txt",
+    "route": "/api/fs/read/colon%3Asemicolon%3B.txt"
+  },
+  {
+    "path": "brackets[1](2){3}.txt",
+    "route": "/api/fs/read/brackets%5B1%5D(2)%7B3%7D.txt"
+  },
+  {
+    "path": "unreserved-_.!~*'().txt",
+    "route": "/api/fs/read/unreserved-_.!~*'().txt"
+  },
+  {
+    "path": "at@dollar$comma,equals=.txt",
+    "route": "/api/fs/read/at%40dollar%24comma%2Cequals%3D.txt"
+  },
+  {
+    "path": "back\\slash.txt",
+    "route": "/api/fs/read/back%5Cslash.txt"
+  },
+  {
+    "path": "tab\tand\nnewline.txt",
+    "route": "/api/fs/read/tab%09and%0Anewline.txt"
+  },
+  {
+    "path": "ünïcødé/файл/文件.txt",
+    "route": "/api/fs/read/%C3%BCn%C3%AFc%C3%B8d%C3%A9/%D1%84%D0%B0%D0%B9%D0%BB/%E6%96%87%E4%BB%B6.txt"
+  },
+  {
+    "path": "emoji 😀.png",
+    "route": "/api/fs/read/emoji%20%F0%9F%98%80.png"
+  },
+  {
+    "path": "a//b.txt",
+    "route": "/api/fs/read/a//b.txt"
+  },
+  {
+    "path": "/absolute/path.txt",
+    "route": "/api/fs/read//absolute/path.txt"
+  },
+  {
+    "path": "trailing/",
+    "route": "/api/fs/read/trailing/"
+  }
+]

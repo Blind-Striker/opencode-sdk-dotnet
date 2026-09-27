@@ -13,7 +13,13 @@ evidence and may contain superseded positions.
   production and refresh policy are receipt-governed (ADR-0020); `spec/SNAPSHOT.md` owns the
   exact identity and the current procedure (ADR-0005, ADR-0013, ADR-0020).
 - Upstream implementation source is provenance and diagnostic evidence only. It never supplies a
-  missing wire type, constraint, format, status, media type, or validation rule (ADR-0013).
+  missing wire type, constraint, format, status, media type, or validation rule (ADR-0013). One
+  rule is the bounded exception: a route whose path ends in one trailing `/*` binds upstream's
+  own codegen rule for it — a required `Path` member (`Wildcard` when a parameter already takes
+  `path`), first in the operation's request record, that fills the path escaped segment by segment
+  as upstream's `encodePath` escapes it, with a dot segment refused by name. The rule is mirrored,
+  not read; the source watch pins the codegen file, and `tools/oracles/wildcard-path.ts` holds the
+  SDK's request paths to upstream's client (ADR-0029).
 - The public SDK covers the OpenCode 2.x protocol surface only. At the current pin, operation
   identities use dotted group/action segments without a version prefix. The first segment selects
   the curated client family; `experimental.*` operations use the flat ExperimentalClient with
@@ -43,8 +49,10 @@ evidence and may contain superseded positions.
 - The committed receipt records the exact inputs, hashes, patch preimages, operation-set digest,
   and operation delta of the accepted snapshot; `refresh-spec --verify` is its standing check.
 - The source watch (`spec/source-watch.json`) pins, by path, SHA-256 and one content anchor, the
-  upstream files the hand-written doors read as inputs and the two upstream lists the generator's
-  secret masking follows (ADR-0028); it is a refresh-time review trigger only
+  upstream files the hand-written doors read as inputs, the two upstream lists the generator's
+  secret masking follows (ADR-0028), and the upstream rules the generator mirrors — Effect's union
+  decode (ADR-0016) and the trailing-wildcard codegen rule (ADR-0029); it is a refresh-time review
+  trigger only
   and never reaches ingestion, curation, or emission (ADR-0013).
 
 ## Construction pipeline
@@ -283,7 +291,10 @@ dispatch instead of routing it through ADR-0009's unknown carrier (ADR-0015).
 - Exclusion is reserved for transports the HTTP pipeline cannot carry, such as a WebSocket upgrade.
   Every excluded operation is fingerprint-pinned so protocol drift forces review (ADR-0008).
 - Unknown response media types fail generation. Supported non-JSON response bodies follow the
-  fail-closed content-type-to-payload mapping recorded by ADR-0008.
+  fail-closed content-type-to-payload mapping recorded by ADR-0008. An `application/octet-stream`
+  success whose schema is `string` with `format: binary` binds a binary envelope: the buffered
+  bytes as `Content` (`ReadOnlyMemory<byte>`) and the server's `Content-Type` as `ContentType`,
+  materialized without a charset decode; its error statuses keep their JSON bodies (ADR-0029).
 
 ## Serialization and Native AOT
 

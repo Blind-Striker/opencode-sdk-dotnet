@@ -256,6 +256,7 @@ namespace OpenCode.Sdk
         protected FileSystemClient() { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.FsFindResponse> FindEntriesAsync(OpenCode.Sdk.FsFindRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.Task<OpenCode.Sdk.FsListResponse> ListEntriesAsync(OpenCode.Sdk.FsListRequest? request = null, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.Task<OpenCode.Sdk.FsReadResponse> ReadFileAsync(OpenCode.Sdk.FsReadRequest request, OpenCode.Sdk.OpenCodeRequestOptions? requestOptions = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class FormListRequest : System.IEquatable<OpenCode.Sdk.FormListRequest>
     {
@@ -300,6 +301,19 @@ namespace OpenCode.Sdk
         public FsListResponse() { }
         public required System.Collections.Generic.IReadOnlyList<OpenCode.Sdk.Models.FileSystemEntry> Entries { get; init; }
         public required OpenCode.Sdk.Models.LocationPublicRef Location { get; init; }
+        protected override bool PrintMembers(System.Text.StringBuilder builder) { }
+    }
+    public sealed class FsReadRequest : System.IEquatable<OpenCode.Sdk.FsReadRequest>
+    {
+        public FsReadRequest() { }
+        public OpenCode.Sdk.LocationSelector? Location { get; init; }
+        public required string Path { get; init; }
+    }
+    public sealed class FsReadResponse : OpenCode.Sdk.OpenCodeResponse, System.IEquatable<OpenCode.Sdk.FsReadResponse>
+    {
+        public FsReadResponse() { }
+        public required System.ReadOnlyMemory<byte> Content { get; init; }
+        public string? ContentType { get; init; }
         protected override bool PrintMembers(System.Text.StringBuilder builder) { }
     }
     public interface IOpenCodeClientOptions
@@ -665,8 +679,10 @@ namespace OpenCode.Sdk
         {
             public const string FindEntriesTemplate = "/api/fs/find";
             public const string ListEntriesTemplate = "/api/fs/list";
+            public const string ReadFileTemplate = "/api/fs/read/*";
             public static string FindEntries(OpenCode.Sdk.FsFindRequest request) { }
             public static string ListEntries(OpenCode.Sdk.FsListRequest? request = null) { }
+            public static string ReadFile(OpenCode.Sdk.FsReadRequest request) { }
         }
         public static class Forms
         {
@@ -3199,6 +3215,16 @@ namespace OpenCode.Sdk.Models
         Deleted = 1,
         [System.Text.Json.Serialization.JsonStringEnumMemberName("modified")]
         Modified = 2,
+    }
+    public sealed class FileNotFoundError : OpenCode.Sdk.Models.IOpenCodeError, System.IEquatable<OpenCode.Sdk.Models.FileNotFoundError>
+    {
+        public FileNotFoundError() { }
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public required string Message { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("path")]
+        public required string Path { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("_tag")]
+        public string Tag { get; }
     }
     public sealed class FileSystemEntry : System.IEquatable<OpenCode.Sdk.Models.FileSystemEntry>
     {

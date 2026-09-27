@@ -14,6 +14,13 @@ internal static class ResponseMaterializer
         var status = (int)message.Response!.StatusCode;
         switch (adapter.Classify(status))
         {
+            case StatusVerdict.Success when adapter.BinarySuccess:
+                // Raw bytes are not text: no charset decode, no UTF-8 validation.
+                var raw = message.Body ?? ResponseBody.Empty;
+                return adapter.AdaptBinary(
+                    status,
+                    raw.Bytes.AsSpan(0, raw.Length),
+                    message.Response.Content?.Headers.ContentType?.ToString());
             case StatusVerdict.Success:
                 var encodedBody = Decode(message);
                 return encodedBody.DecodedBody is { } decoded

@@ -103,6 +103,7 @@ namespace OpenCode.Sdk.Internal.Serialization;
 [JsonSerializable(typeof(ExperimentalSessionStatsResponseEnvelope))]
 [JsonSerializable(typeof(FileDiffInfo))]
 [JsonSerializable(typeof(FileDiffInfoStatus))]
+[JsonSerializable(typeof(FileNotFoundError))]
 [JsonSerializable(typeof(FileSystemEntry))]
 [JsonSerializable(typeof(FileSystemEntryType))]
 [JsonSerializable(typeof(FilesystemChanged))]

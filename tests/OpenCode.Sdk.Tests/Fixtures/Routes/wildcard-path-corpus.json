@@ -1,0 +1,21 @@
+[
+  "README.md",
+  "src/app.ts",
+  "a/b/c/d.txt",
+  "my file.ts",
+  "notes #1.md",
+  "100% done.txt",
+  "query?x=1&y=2.txt",
+  "plus+sign.txt",
+  "colon:semicolon;.txt",
+  "brackets[1](2){3}.txt",
+  "unreserved-_.!~*'().txt",
+  "at@dollar$comma,equals=.txt",
+  "back\\slash.txt",
+  "tab\tand\nnewline.txt",
+  "ünïcødé/файл/文件.txt",
+  "emoji 😀.png",
+  "a//b.txt",
+  "/absolute/path.txt",
+  "trailing/"
+]

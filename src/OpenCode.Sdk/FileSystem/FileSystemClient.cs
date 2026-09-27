@@ -59,4 +59,22 @@ public class FileSystemClient
     {
         return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.FileSystem.ListEntries(request), FsListResponseAdapter.Instance, requestOptions, cancellationToken);
     }
+
+    /// <summary>
+    /// Read file. Serve one file relative to the requested location.
+    /// </summary>
+    /// <param name = "request">The request shaping the query; its required members have no server default.</param>
+    /// <param name = "requestOptions">The per-call options.</param>
+    /// <param name = "cancellationToken">The cancellation token.</param>
+    /// <returns>The &apos;FsReadResponse&apos; envelope.</returns>
+    /// <exception cref = "OpenCodeApiException">The API returned an error status (declared: 400, 401, 404) and NoThrow was not selected.</exception>
+    /// <exception cref = "OpenCodeTransportException">The server could not be reached or returned a malformed success body.</exception>
+    /// <remarks>
+    /// Operation <c>fs.read</c>: <c>GET /api/fs/read/*</c>.
+    /// </remarks>
+    public virtual Task<FsReadResponse> ReadFileAsync(FsReadRequest request, OpenCodeRequestOptions? requestOptions = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return Pipeline.ExecuteAsync(HttpMethod.Get, OpenCodeRoutes.FileSystem.ReadFile(request), FsReadResponseAdapter.Instance, requestOptions, cancellationToken);
+    }
 }

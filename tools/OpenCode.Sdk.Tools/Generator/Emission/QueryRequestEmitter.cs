@@ -85,7 +85,7 @@ internal static class QueryRequestEmitter
     {
         var type = property.Kind switch
         {
-            QueryValueKind.Text => SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword)),
+            QueryValueKind.Text or QueryValueKind.RouteTail => SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword)),
             QueryValueKind.ListOrder => TypeSyntaxEmitter.EmitNamed("ListOrder"),
             QueryValueKind.BooleanText => TypeSyntaxEmitter.EmitNamed("QueryBoolean"),
             QueryValueKind.SessionParentFilter => TypeSyntaxEmitter.EmitNamed("SessionParentFilter"),

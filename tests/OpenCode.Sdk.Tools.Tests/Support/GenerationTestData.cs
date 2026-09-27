@@ -25,7 +25,7 @@ internal static class GenerationTestData
     public const string DeclinedOperationId = "widget.tail";
 
     private const string DeclinedReason =
-        "The route is an upstream wildcard and the operation is WebSocket-marked, so it does not bind; maintainer 2026-08-30.";
+        "The operation is WebSocket-marked and a bodyless PUT, so it does not bind; maintainer 2026-08-30.";
 
     private const string SpecPath = "spec/openapi.json";
     private const string ProfilePath = "tools/generation-profile.txt";
@@ -119,9 +119,9 @@ internal static class GenerationTestData
             .WithOperation("health.get", path: "/api/health", configure: operation => operation
                 .Response(200, "application/json", schema => schema.Ref("ExampleHealth")))
             .WithOperation("session.list", path: "/api/session")
-            // Two independent wire-shape walls (wildcard path, WebSocket) on the same operation,
+            // Two independent wire-shape walls (WebSocket, a bodyless PUT) on the same operation,
             // so the pending map proves the telltale lists every wall, not only the first.
-            .WithOperation("widget.tail", path: "/api/widget/*", configure: operation => operation
+            .WithOperation("widget.tail", method: "put", path: "/api/widget/tail", configure: operation => operation
                 .Extension("x-websocket", "true"));
         // The bindable pending operation is the drift telltale's subject; roots that must reach
         // pending = 0 leave it out, because a bindable operation can never be declined.

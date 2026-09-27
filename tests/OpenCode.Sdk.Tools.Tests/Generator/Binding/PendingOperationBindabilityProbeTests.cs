@@ -16,7 +16,7 @@ public sealed class PendingOperationBindabilityProbeTests
             .Response(200, "application/json", schema => schema.Ref("WidgetInfo")))
         .WithOperation("widget.connect", path: "/api/widget/connect", configure: operation => operation
             .Extension("x-websocket", "true"))
-        .WithOperation("widget.tail", path: "/api/widget/*", configure: operation => operation
+        .WithOperation("widget.tail", method: "put", path: "/api/widget/tail", configure: operation => operation
             .Extension("x-websocket", "true")));
 
     [Test]
@@ -58,7 +58,7 @@ public sealed class PendingOperationBindabilityProbeTests
         await Assert.That(marks.Count).IsEqualTo(1);
         await Assert.That(marks[0].IsBindable).IsFalse();
         await Assert.That(marks[0].RefusalMessage).IsEqualTo(
-            "wildcard paths are not supported in M1; WebSocket operations are not supported in M1");
+            "WebSocket operations are not supported in M1; PUT operations must carry a request body");
     }
 
     [Test]

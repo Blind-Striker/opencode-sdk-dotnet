@@ -20,4 +20,10 @@ internal enum EnvelopeKind
 
     /// <summary>The body carries a <c>data</c> array beside a required <c>location</c> echo.</summary>
     DataLocationList = 5,
+
+    /// <summary>
+    /// The body is raw bytes of an <c>application/octet-stream</c> success; the response carries
+    /// them buffered as <c>Content</c> beside the server's <c>ContentType</c>.
+    /// </summary>
+    Binary = 6,
 }

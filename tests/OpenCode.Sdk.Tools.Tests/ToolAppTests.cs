@@ -131,7 +131,7 @@ public sealed class ToolAppTests
         await Assert.That(marker).Contains("- plugin.list [bindable]");
         await Assert.That(marker).Contains("- session.list [refused: the success response must carry a JSON schema]");
         await Assert.That(marker).Contains(
-            "- widget.tail [refused: wildcard paths are not supported in M1; WebSocket operations are not supported in M1]");
+            "- widget.tail [refused: WebSocket operations are not supported in M1; PUT operations must carry a request body]");
     }
 
     [Test]
@@ -180,9 +180,9 @@ public sealed class ToolAppTests
         // The declined line carries the decision and the wall the binder finds today, so the two
         // are reviewed against each other in one place.
         await Assert.That(marker).Contains(
-            "Declined:\n- widget.tail [declined: The route is an upstream wildcard and the operation is WebSocket-marked, "
+            "Declined:\n- widget.tail [declined: The operation is WebSocket-marked and a bodyless PUT, "
             + "so it does not bind; maintainer 2026-08-30.] "
-            + "[refused: wildcard paths are not supported in M1; WebSocket operations are not supported in M1]\n");
+            + "[refused: WebSocket operations are not supported in M1; PUT operations must carry a request body]\n");
         await Assert.That(marker).DoesNotContain("Pending:\n- widget.tail");
     }
 

@@ -54,6 +54,13 @@ internal static class ResponseAdapterEmitter
         {
             members.Add(EmitProjectingSuccessHelper(envelope, "Location"));
         }
+
+        if (envelope.Kind is EnvelopeKind.Binary)
+        {
+            members.Add(EmitBinarySuccess());
+            members.Add(EmitAdaptBinary(envelope));
+        }
+
         var baseTypes = new List<BaseTypeSyntax>
         {
             SyntaxFactory.SimpleBaseType(TypeSyntaxEmitter.Generic(
@@ -145,6 +152,53 @@ internal static class ResponseAdapterEmitter
                 EmitSuccessCreation(envelope, SyntaxFactory.IdentifierName("utf8Body"))))
             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
             .WithLeadingTrivia(EmissionSyntax.Documentation("Maps the declared UTF-8 success body onto the typed envelope."));
+
+    private static PropertyDeclarationSyntax EmitBinarySuccess() =>
+        SyntaxFactory.PropertyDeclaration(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.BoolKeyword)), "BinarySuccess")
+            .WithModifiers(SyntaxFactory.TokenList(
+                SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                SyntaxFactory.Token(SyntaxKind.OverrideKeyword)))
+            .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression)))
+            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
+            .WithLeadingTrivia(EmissionSyntax.Documentation("Gets a value indicating that the success body is raw bytes."));
+
+    /// <summary>
+    /// The envelope of a raw-byte success: the bytes are copied out of the pooled buffer, which the
+    /// pipeline returns when the message ends, beside the server's <c>Content-Type</c>.
+    /// </summary>
+    private static MethodDeclarationSyntax EmitAdaptBinary(EnvelopePlan envelope) =>
+        SyntaxFactory.MethodDeclaration(TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName), "AdaptBinary")
+            .WithModifiers(SyntaxFactory.TokenList(
+                SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                SyntaxFactory.Token(SyntaxKind.OverrideKeyword)))
+            .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(
+            [
+                SyntaxFactory.Parameter(SyntaxFactory.Identifier("status"))
+                    .WithType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.IntKeyword))),
+                SyntaxFactory.Parameter(SyntaxFactory.Identifier("body"))
+                    .WithType(TypeSyntaxEmitter.Generic(
+                        "ReadOnlySpan",
+                        SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.ByteKeyword)))),
+                SyntaxFactory.Parameter(SyntaxFactory.Identifier("contentType"))
+                    .WithType(SyntaxFactory.NullableType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword)))),
+            ])))
+            .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(SyntaxFactory
+                .ObjectCreationExpression(TypeSyntaxEmitter.EmitNamed(envelope.ResponseTypeName))
+                .WithArgumentList(SyntaxFactory.ArgumentList())
+                .WithInitializer(SyntaxFactory.InitializerExpression(
+                    SyntaxKind.ObjectInitializerExpression,
+                    SyntaxFactory.SeparatedList<ExpressionSyntax>(
+                    [
+                        Initialize("Status", SyntaxFactory.IdentifierName("status")),
+                        Initialize(RequirePayloadName(envelope), EmissionSyntax.Invocation(
+                            EmissionSyntax.MemberAccess(SyntaxFactory.IdentifierName("body"), "ToArray"))),
+                        Initialize("ContentType", SyntaxFactory.IdentifierName("contentType")),
+                    ])))))
+            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
+            .WithLeadingTrivia(EmissionSyntax.Documentation("Maps the raw success bytes and their content type onto the typed envelope."));
+
+    private static AssignmentExpressionSyntax Initialize(string member, ExpressionSyntax value) =>
+        SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, SyntaxFactory.IdentifierName(member), value);
 
     private static MethodDeclarationSyntax EmitAdapt(OperationPlan operation)
     {
@@ -290,6 +344,14 @@ internal static class ResponseAdapterEmitter
 
         return envelope.Kind switch
         {
+            // The materializer hands a binary success to AdaptBinary with its raw bytes; the text
+            // paths never see one.
+            EnvelopeKind.Binary => SyntaxFactory.ThrowExpression(SyntaxFactory.ObjectCreationExpression(
+                    TypeSyntaxEmitter.EmitNamed("InvalidOperationException"))
+                .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(
+                    SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
+                        SyntaxKind.StringLiteralExpression,
+                        SyntaxFactory.Literal("A binary success is adapted from its raw bytes, not from text."))))))),
             EnvelopeKind.Bare => EmitSuccessInitializer(envelope, Read()),
             EnvelopeKind.Data => EmitSuccessInitializer(envelope, EmissionSyntax.MemberAccess(Read(), "Data")),
             EnvelopeKind.NoContent => EmitNoContentSuccess(envelope),

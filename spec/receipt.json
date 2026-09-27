@@ -327,6 +327,16 @@
       "path": "packages/client/test/fixture/service.ts",
       "sha256": "5e6f7e8b39ec8df2376cef0880da0cc41a2f90c3ffb74eea71c9fff90d4581ad",
       "anchorMatched": true
+    },
+    {
+      "path": "packages/httpapi-codegen/src/index.ts",
+      "sha256": "c5e2f95f651965a788b6415af50f9a52a18a30578f2fc6da89be6f6a4b02de7d",
+      "anchorMatched": true
+    },
+    {
+      "path": "packages/server/src/handlers/fs.ts",
+      "sha256": "091a3fdbc7f6ecdd5376516704570948da7bd981793d06137089a43f6a5a8adb",
+      "anchorMatched": true
     }
   ]
 }
