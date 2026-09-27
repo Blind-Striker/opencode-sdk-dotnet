@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-09-24
+Date: 2026-09-27
 
 Operational state: what ships today, what is queued next, what is still open, and what is known to
 be incomplete. This file is a summary and shrinks as work lands. `../AGENTS.md` routes to the
@@ -103,9 +103,9 @@ is revisited at each boundary.
    through upstream's own trailing-wildcard codegen rule and a binary response envelope
    (ADR-0029); `experimental.fs.write` — the same family's octet-stream request body — as a
    caller `Stream` beside its query record; and the two transport-owned WebSocket doors counted
-   as the covered operations they are — so the surface reads 136 of 136 usable.
-   **What remains of M4, in order:** the refresh to the newest upstream release tag, then the
-   close.
+   as the covered operations they are. The accepted pin then moved under receipt to the newest
+   upstream release tag, `v2.0.18`, whose two pairing operations are generated, so all 138 of 138
+   operations are usable. **M4 is complete in code; it ships as `0.9.0-preview.4`.**
 5. **M5 — Full surface.** Target admission over the refreshed surface, driven by the `refresh-spec`
    synchronizer (ADR-0020) and the ownership pattern for the terminal families (ADR-0021). Coverage
    has reached its end state; what remains is exclusion fingerprints for the transport-owned
