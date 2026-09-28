@@ -11,24 +11,27 @@ namespace OpenCode.Sdk.ServiceFixture;
 /// Runs <see cref="OpenCodeServer.DiscoverAsync"/> once and prints
 /// <c>found owns=&lt;true|false&gt; pid=&lt;pid&gt; endpoint=&lt;url&gt;</c> or <c>missing</c>.
 /// On stderr it prints the probe's verdict — <c>probe timedOut=&lt;true|false&gt;</c>, or
-/// <c>probe none</c> when discovery never reached a registered endpoint — and the elapsed time.
+/// <c>probe none</c> when discovery never reached a registered endpoint — the elapsed time, and the
+/// <see cref="ProbeTimeline"/> of the network events behind the verdict.
 /// </summary>
 internal static class DiscoveryMode
 {
     public static async Task<int> RunAsync(OpenCodeServerDiscoverOptions? options)
     {
+        using var timeline = new ProbeTimeline();
         try
         {
             // Discovery answers "missing" alike for no service and for a probe whose bound expired,
             // so the verdict goes to stderr beside the elapsed time, never into the stdout contract:
-            // a test reads the verdict, the time is only a diagnostic.
-            var probe = new RecordingProbe(new ServiceInfoProbe(ServiceTiming.Default));
+            // a test reads the verdict, the time and the timeline are only diagnostics.
+            var probe = new RecordingProbe(new ServiceInfoProbe(ServiceTiming.Default), timeline);
             var stopwatch = Stopwatch.StartNew();
             var server = await OpenCodeServer.DiscoverWithSeamsAsync(options, probe, CancellationToken.None).ConfigureAwait(false);
             await Console.Error
                 .WriteLineAsync($"discovery took {stopwatch.ElapsedMilliseconds.ToString(CultureInfo.InvariantCulture)} ms")
                 .ConfigureAwait(false);
             await Console.Error.WriteLineAsync(probe.Verdict).ConfigureAwait(false);
+            await Console.Error.WriteLineAsync(timeline.Render()).ConfigureAwait(false);
             if (server is null)
             {
                 await Console.Out.WriteLineAsync("missing").ConfigureAwait(false);
@@ -48,12 +51,13 @@ internal static class DiscoveryMode
         catch (Exception exception) when (exception is ArgumentException or OpenCodeServerException)
         {
             await Console.Error.WriteLineAsync(exception.GetType().Name + ": " + exception.Message).ConfigureAwait(false);
+            await Console.Error.WriteLineAsync(timeline.Render()).ConfigureAwait(false);
             return 1;
         }
     }
 
-    /// <summary>The platform probe, remembering the last verdict it gave discovery.</summary>
-    private sealed class RecordingProbe(IServiceInfoProbe inner) : IServiceInfoProbe
+    /// <summary>The platform probe, remembering the last verdict it gave discovery and marking its start and end on the timeline.</summary>
+    private sealed class RecordingProbe(IServiceInfoProbe inner, ProbeTimeline timeline) : IServiceInfoProbe
     {
         private ServiceProbeResult? _last;
 
@@ -72,7 +76,9 @@ internal static class DiscoveryMode
 
         public async Task<ServiceProbeResult> ProbeAsync(ServiceRegistration registration, CancellationToken cancellationToken)
         {
+            timeline.Mark("probe start " + registration.Endpoint);
             _last = await inner.ProbeAsync(registration, cancellationToken).ConfigureAwait(false);
+            timeline.Mark("probe end");
             return _last;
         }
     }

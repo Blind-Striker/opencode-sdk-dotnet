@@ -87,6 +87,7 @@ public sealed class OpenCodeServerDiscoveryIsolatedProcessTests
     /// must classify as no service on every host, including Windows, where the default connect
     /// retransmits the SYN for about two seconds. The witness is the probe's own verdict, which the
     /// child prints, not the elapsed time: a loaded runner stretches the time, never the verdict.
+    /// The child's timeline also witnesses the refusal itself, the socket's own connect failure.
     /// The child is the real SDK, so this proves the probe's transport end to end.
     /// </summary>
     [Test]
@@ -114,6 +115,8 @@ public sealed class OpenCodeServerDiscoveryIsolatedProcessTests
         await Assert.That(result.ExitCode).IsEqualTo(0).Because(result.StandardError);
         await Assert.That(result.StandardOutput.Trim()).IsEqualTo("missing").Because(result.StandardError);
         await Assert.That(ServiceFixtureOutput.ProbeTimedOut(result.StandardError)).IsFalse()
+            .Because(result.StandardError);
+        await Assert.That(ServiceFixtureOutput.ConnectRefused(result.StandardError)).IsTrue()
             .Because(result.StandardError);
     }
 
