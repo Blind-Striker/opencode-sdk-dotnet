@@ -11,6 +11,9 @@ internal static class ServiceFixtureOutput
     private const string ProbeTimedOutLine = "probe timedOut=true";
     private const string ProbeAnsweredLine = "probe timedOut=false";
 
+    /// <summary>The timeline's socket event for a refused connect: <see cref="System.Net.Sockets.SocketError.ConnectionRefused"/> on every platform.</summary>
+    private const string ConnectRefusedEvent = "System.Net.Sockets/ConnectFailed error=10061";
+
     public static string FoundLine(int processId, Uri endpoint) =>
         $"found owns=false pid={processId.ToString(CultureInfo.InvariantCulture)} endpoint={endpoint}";
 
@@ -32,5 +35,12 @@ internal static class ServiceFixtureOutput
         }
 
         return standardError.Contains(ProbeAnsweredLine, StringComparison.Ordinal) ? false : null;
+    }
+
+    /// <summary>Reads whether the executable's timeline recorded a socket connect the peer refused.</summary>
+    public static bool ConnectRefused(string standardError)
+    {
+        ArgumentNullException.ThrowIfNull(standardError);
+        return standardError.Contains(ConnectRefusedEvent, StringComparison.Ordinal);
     }
 }
