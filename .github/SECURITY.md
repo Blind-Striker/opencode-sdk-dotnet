@@ -26,7 +26,7 @@ enabled, so credentials committed by mistake are caught at push time.
 
 ### Preferred Method: GitHub Security Advisories
 
-1. Go to the [Security tab](https://github.com/Blind-Striker/opencode-sdk-dotnet/security) of this
+1. Go to the [Security tab](https://github.com/opencode-dotnet/opencode-sdk-dotnet/security) of this
    repository
 2. Click **"Report a vulnerability"**
 3. Fill out the security advisory form with details about the vulnerability
@@ -36,13 +36,13 @@ This keeps the report private between you and the maintainer until a fix is avai
 ### Public Issues
 
 For **non-security** bugs, please use the
-[GitHub Issues](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues) tracker. Never file a
+[GitHub Issues](https://github.com/opencode-dotnet/opencode-sdk-dotnet/issues) tracker. Never file a
 suspected vulnerability as a public issue.
 
 ## Scope
 
-This policy covers the SDK packages in this repository — `OpenCodeAI.Sdk` and
-`OpenCodeAI.Sdk.Extensions` — and the repository's own tooling and workflows.
+This policy covers the SDK packages in this repository — `OpenCodeDotNet.Sdk` and
+`OpenCodeDotNet.Sdk.Extensions` — and the repository's own tooling and workflows.
 
 Two things are explicitly **out of scope**:
 

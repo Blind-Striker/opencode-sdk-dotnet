@@ -8,11 +8,11 @@ chance of being accepted.
 
 ## 📋 Quick Reference
 
-- 🐛 **Found a bug?** → [Create an Issue](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/new/choose)
-- 💡 **Have an idea?** → [Open an Issue](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/new) and describe it (Discussions are not enabled on this repository yet)
+- 🐛 **Found a bug?** → [Create an Issue](https://github.com/opencode-dotnet/opencode-sdk-dotnet/issues/new/choose)
+- 💡 **Have an idea?** → [Open an Issue](https://github.com/opencode-dotnet/opencode-sdk-dotnet/issues/new) and describe it (Discussions are not enabled on this repository yet)
 - ❓ **Need help?** → Ask in an issue; usage questions are welcome
 - 🚨 **Security issue?** → See our [Security Policy](SECURITY.md) — never open a public issue for one
-- 🔧 **Ready to code?** → [Submit a Pull Request](https://github.com/Blind-Striker/opencode-sdk-dotnet/compare)
+- 🔧 **Ready to code?** → [Submit a Pull Request](https://github.com/opencode-dotnet/opencode-sdk-dotnet/compare)
 
 ## 🤝 Code of Conduct
 
@@ -52,7 +52,7 @@ sign.
    cd opencode-sdk-dotnet
 
    # Add the upstream remote
-   git remote add upstream https://github.com/Blind-Striker/opencode-sdk-dotnet.git
+   git remote add upstream https://github.com/opencode-dotnet/opencode-sdk-dotnet.git
    ```
 
    `external/` holds read-only upstream checkouts used as protocol evidence and as the pinned-server
@@ -95,7 +95,7 @@ sign.
 
 ### Creating a Bug Report
 
-Use the [bug report form](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/new/choose), which asks for:
+Use the [bug report form](https://github.com/opencode-dotnet/opencode-sdk-dotnet/issues/new/choose), which asks for:
 
 - **Environment details** (SDK version, opencode server version, target framework, OS)
 - **A minimal reproduction** — the smallest snippet that shows the problem
@@ -105,7 +105,7 @@ Use the [bug report form](https://github.com/Blind-Striker/opencode-sdk-dotnet/i
 ## 💡 Suggesting Features
 
 GitHub Discussions are not enabled on this repository yet, so feature ideas go to
-[Issues](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/new) as well. Describe the
+[Issues](https://github.com/opencode-dotnet/opencode-sdk-dotnet/issues/new) as well. Describe the
 use case first and the API shape second — what you are trying to do carries more weight than a
 proposed signature.
 
@@ -237,7 +237,7 @@ Scratch work belongs under the gitignored `.scratchpad/`; nothing permanent may 
 ## 🎉 Recognition
 
 Contributors are recognized on the
-[Contributors](https://github.com/Blind-Striker/opencode-sdk-dotnet/graphs/contributors) page and
+[Contributors](https://github.com/opencode-dotnet/opencode-sdk-dotnet/graphs/contributors) page and
 in the release notes for significant contributions.
 
 ---

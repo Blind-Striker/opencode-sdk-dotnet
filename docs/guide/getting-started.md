@@ -14,11 +14,11 @@ one talks to a model.
 ## 📦 Install
 
 ```bash
-dotnet add package OpenCodeAI.Sdk --prerelease
-dotnet add package OpenCodeAI.Sdk.Extensions --prerelease   # dependency injection, optional
+dotnet add package OpenCodeDotNet.Sdk --prerelease
+dotnet add package OpenCodeDotNet.Sdk.Extensions --prerelease   # dependency injection, optional
 ```
 
-> **The package id is not the namespace.** You install `OpenCodeAI.Sdk` and you write
+> **The package id is not the namespace.** You install `OpenCodeDotNet.Sdk` and you write
 > `using OpenCode.Sdk;` — nuget.org reserves the `OpenCode.` id prefix for an unrelated owner, so
 > the artifact carries a different name than the code inside it.
 

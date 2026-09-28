@@ -45,13 +45,13 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
   its official launch then. The pin tracks upstream release tags and is refreshed under receipt at
   milestone boundaries; package names and launch documentation are re-checked when the launch
   lands. The accepted protocol identity is owned by `../spec/SNAPSHOT.md`.
-- **Packages** — the two packages publish as `OpenCodeAI.Sdk` and `OpenCodeAI.Sdk.Extensions`
-  (the assemblies stay `OpenCode.Sdk`) and pack at the single-sourced
-  `VersionPrefix 0.9.0`. Every `master` push publishes a `0.9.0-nightly.*` build to GitHub
-  Packages, and `0.9.0-preview.4` is on NuGet.org, owned by `OpenCode.NET` and pushed through the
-  manual lane over Trusted Publishing. The ids carry `OpenCodeAI` because nuget.org reserves the
-  `OpenCode.` prefix for an unrelated owner; that dispute is still open and no longer blocks
-  anything.
+- **Packages** — the two packages publish as `OpenCodeDotNet.Sdk` and
+  `OpenCodeDotNet.Sdk.Extensions` (the assemblies stay `OpenCode.Sdk`) and pack at the
+  single-sourced `VersionPrefix 0.9.0`. Every `master` push publishes a `0.9.0-nightly.*` build to
+  the organization's GitHub Packages feed, and `0.9.0-preview.4` is on NuGet.org, owned by
+  `OpenCode.NET` and pushed through the manual lane over Trusted Publishing. The ids carry
+  `OpenCodeDotNet` because nuget.org reserves the `OpenCode.` prefix for an unrelated owner. The
+  earlier ids, `OpenCodeAI.Sdk` and `OpenCodeAI.Sdk.Extensions`, receive no further versions.
 
 ## Milestones
 
@@ -90,16 +90,16 @@ is revisited at each boundary.
    reach the handoff with no persistent terminal open, so the ticket-carrying path is proven by the
    loopback tests, not live) and, on the weekly consumer leg, against the published CLI.
    **Two generator slices rode inside M4 and have landed.** Fail-closed operation naming
-   ([#86](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/86)): the HTTP method is
+   ([#86](https://github.com/opencode-dotnet/opencode-sdk-dotnet/issues/86)): the HTTP method is
    never a name source — the closed grammar names an operation or a reason-bearing
    `operationNames` row does, handle clients name themselves rather than their family, and
    request, response, and payload types follow the same rule (ADR-0008) — together with the
-   enum member naming channel ([#84](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/84),
+   enum member naming channel ([#84](https://github.com/opencode-dotnet/opencode-sdk-dotnet/issues/84),
    `McpProtocol.Revision20260728`). **Surface completeness** then admits the
    operations that sit outside generation: `config.get` and `experimental.migration.v1.status`
    through an ADR-0016 first-match arm that mirrors upstream's own union decode — token kind,
    literal sentinel, declaration order, required-key presence — proven against upstream's real
-   decoder ([#87](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/87)); `fs.read`
+   decoder ([#87](https://github.com/opencode-dotnet/opencode-sdk-dotnet/issues/87)); `fs.read`
    through upstream's own trailing-wildcard codegen rule and a binary response envelope
    (ADR-0029); `experimental.fs.write` — the same family's octet-stream request body — as a
    caller `Stream` beside its query record; and the two transport-owned WebSocket doors counted
@@ -213,7 +213,7 @@ is revisited at each boundary.
   place this one layer above their core client, which does not reconnect either
   (`packages/client/src/solid/connection.ts`: two-second connect, forty-five-second idle abort,
   one-second reconnect delay, and an authoritative refetch once reconnected).
-- **Live tests are serialized by one mutex within a host** ([#83](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues/83)):
+- **Live tests are serialized by one mutex within a host** ([#83](https://github.com/opencode-dotnet/opencode-sdk-dotnet/issues/83)):
   every live class that shares a server carries the `ServerProcess` key, and the classes whose
   assertions ride a wall-clock bound run keyless `[NotInParallel]`, so a host's live tests run one
   at a time. The part of that serial tail a key could shorten measured under 30 s of a Windows

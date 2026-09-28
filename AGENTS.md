@@ -61,7 +61,7 @@ positions.
 - `CONTEXT.md` owns current domain vocabulary.
 - `spec/SNAPSHOT.md` owns the exact OpenAPI pin and refresh procedure.
 - Dated research evidence, plans and specs, and session handovers live in the private companion
-  repository `Blind-Striker/opencode-sdk-dotnet-internal`. That material is non-normative history
+  repository `opencode-dotnet/opencode-sdk-dotnet-internal`. That material is non-normative history
   and reference; contradicting it does not override current canon, and the canon here is complete
   without it.
 

@@ -17,7 +17,7 @@ so the two installs clobber each other's daemon binary.
 
 1. In WSL2, clone the repository and initialize the submodule:
    ```sh
-   git clone https://github.com/Blind-Striker/opencode-sdk-dotnet.git ~/repos/opencode-sdk-dotnet
+   git clone https://github.com/opencode-dotnet/opencode-sdk-dotnet.git ~/repos/opencode-sdk-dotnet
    cd ~/repos/opencode-sdk-dotnet
    git submodule update --init --depth 1 external/opencode
    ```
