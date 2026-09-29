@@ -40,11 +40,11 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
   refresh's CI run qualifies every leg at its pin: Windows on `net472`, `net8.0`, `net9.0`, and
   `net10.0`, Linux and macOS on `net8.0`, `net9.0`, and `net10.0`, with regeneration and receipt
   verification passing.
-- **Official launch watch** — upstream's own 1.x npm package (`opencode-ai`) and its GitHub Releases
-  page were both still at `1.18.31` when last observed on 2026-09-16, so the 2.x line had not had
-  its official launch then. The pin tracks upstream release tags and is refreshed under receipt at
-  milestone boundaries; package names and launch documentation are re-checked when the launch
-  lands. The accepted protocol identity is owned by `../spec/SNAPSHOT.md`.
+- **Upstream 2.x** — the upstream team launched the 2.x line publicly on 2026-09-26. It ships as
+  the `@opencode/cli` npm package, the one this SDK pins and its guides install; the 1.x line
+  continues beside it as `opencode-ai` (`1.18.33` on 2026-09-28), and upstream's GitHub Releases page
+  still lists 1.x releases. The pin tracks upstream 2.x release tags and is refreshed under receipt
+  at milestone boundaries. The accepted protocol identity is owned by `../spec/SNAPSHOT.md`.
 - **Packages** — the two packages publish as `OpenCodeDotNet.Sdk` and
   `OpenCodeDotNet.Sdk.Extensions` (the assemblies stay `OpenCode.Sdk`) and pack at the
   single-sourced `VersionPrefix 0.9.0`. Every `master` push publishes a `0.9.0-nightly.*` build to
