@@ -1,8 +1,8 @@
 # opencode SDK for .NET
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/LICENSE) [![NuGet](https://img.shields.io/nuget/vpre/OpenCodeAI.Sdk)](https://www.nuget.org/packages/OpenCodeAI.Sdk) [![CI](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml/badge.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml) [![Linux Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Flinux%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/linux/blind-striker/opencode-sdk-dotnet/master)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/LICENSE) [![NuGet](https://img.shields.io/nuget/vpre/OpenCodeDotNet.Sdk)](https://www.nuget.org/packages/OpenCodeDotNet.Sdk) [![CI](https://github.com/opencode-dotnet/opencode-sdk-dotnet/actions/workflows/ci.yml/badge.svg)](https://github.com/opencode-dotnet/opencode-sdk-dotnet/actions/workflows/ci.yml) [![Linux Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Flinux%2Fopencode-dotnet%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/linux/opencode-dotnet/opencode-sdk-dotnet/master)
 
-> **🚀 Quick Start**: [Install](#-installation) | [Quick start](#-quick-start) | [Guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/getting-started.md) | [API coverage](#-api-coverage)
+> **🚀 Quick Start**: [Install](#-installation) | [Quick start](#-quick-start) | [Guide](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/getting-started.md) | [API coverage](#-api-coverage)
 
 > **Unofficial.** This project is not affiliated with or endorsed by the
 > [opencode](https://opencode.ai) team.
@@ -29,9 +29,9 @@ WebSocket transports. All three connection modes work: a private server the SDK 
 you already run, and the background service that the opencode CLI registers.
 
 - 🚧 Releases are `0.9.0-preview.N`. A reviewed baseline locks the public surface, but it can still
-  change before `1.0.0`. See [CHANGELOG.md](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/CHANGELOG.md).
+  change before `1.0.0`. See [CHANGELOG.md](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/CHANGELOG.md).
 - 📌 The SDK builds against a snapshot of an upstream release tag, never a live branch.
-  [`spec/SNAPSHOT.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/spec/SNAPSHOT.md)
+  [`spec/SNAPSHOT.md`](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/spec/SNAPSHOT.md)
   owns the exact pin and the refresh procedure.
 - 🔜 An **MCP server** over this SDK is planned, not started.
 
@@ -60,37 +60,38 @@ its own when you use dependency injection.
 
 | Area | Entry point | Guide |
 |---|---|---|
-| Sessions, messages, prompts, session logs | `client.Sessions` | [Requests](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/requests.md), [Pagination](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/pagination.md) |
-| The global event bus | `client.Events` | [Streaming](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/streaming.md) |
-| Terminals and persistent terminals | `client.Ptys`, `client.PersistentPtys` | [Terminals](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/terminals.md) |
-| Shell commands | `client.Shells` | [Requests](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/requests.md) |
-| Files and version control | `client.FileSystem`, `client.Vcs`, `client.Worktrees` | [Requests](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/requests.md) |
-| Permissions and forms | `client.Permissions`, `client.Forms` | [Requests](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/requests.md) |
+| Sessions, messages, prompts, session logs | `client.Sessions` | [Requests](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/requests.md), [Pagination](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/pagination.md) |
+| The global event bus | `client.Events` | [Streaming](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/streaming.md) |
+| Terminals and persistent terminals | `client.Ptys`, `client.PersistentPtys` | [Terminals](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/terminals.md) |
+| Shell commands | `client.Shells` | [Requests](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/requests.md) |
+| Files and version control | `client.FileSystem`, `client.Vcs`, `client.Worktrees` | [Requests](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/requests.md) |
+| Permissions and forms | `client.Permissions`, `client.Forms` | [Requests](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/requests.md) |
 | Models and providers | `client.Providers`, `client.LanguageModels`, `client.Credentials` | — |
 | Agents, commands, skills, plugins | `client.Agents`, `client.Commands`, `client.Skills`, `client.Plugins` | — |
 | MCP servers and integrations | `client.McpServers`, `client.Integrations` | — |
 | Configuration, projects, references | `client.Config`, `client.Projects`, `client.References` | — |
-| Server info and pairing | `client.Server` | [Connection modes](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/connection-modes.md) |
-| Locations | `client.GetLocationAsync`, `client.ReloadLocationsAsync`, `client.Debug` | [Requests](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/requests.md) |
+| Server info and pairing | `client.Server` | [Connection modes](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/connection-modes.md) |
+| Locations | `client.GetLocationAsync`, `client.ReloadLocationsAsync`, `client.Debug` | [Requests](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/requests.md) |
 | Web search and RPC | `client.Websearch`, `client.Rpc` | — |
 | Operations upstream marks experimental | `client.Experimental` | — |
 
 The two terminal connections (`pty.connect`, `persistentPty.connect`) are WebSocket upgrades that
 the HTTP pipeline cannot carry. They are fully usable through the hand-written `PtySession` and
 `PersistentPtySession` types. Nothing is declined:
-[`src/OpenCode.Sdk/.generation-incomplete`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/src/OpenCode.Sdk/.generation-incomplete)
+[`src/OpenCode.Sdk/.generation-incomplete`](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/src/OpenCode.Sdk/.generation-incomplete)
 is the machine-readable map that the build reads.
 
 ## 📦 Installation
 
 ```bash
-dotnet add package OpenCodeAI.Sdk --prerelease
-dotnet add package OpenCodeAI.Sdk.Extensions --prerelease   # dependency injection, optional
+dotnet add package OpenCodeDotNet.Sdk --prerelease
+dotnet add package OpenCodeDotNet.Sdk.Extensions --prerelease   # dependency injection, optional
 ```
 
-> **The package id is not the namespace.** You install `OpenCodeAI.Sdk`, and you write
+> **The package id is not the namespace.** You install `OpenCodeDotNet.Sdk`, and you write
 > `using OpenCode.Sdk;`. nuget.org reserves the `OpenCode.` id prefix for an unrelated owner, so
-> only the `PackageReference` carries the `OpenCodeAI` name.
+> only the `PackageReference` carries the `OpenCodeDotNet` name. The earlier ids,
+> `OpenCodeAI.Sdk` and `OpenCodeAI.Sdk.Extensions`, receive no further versions.
 
 You also need the `opencode` CLI, from the `@opencode/cli` npm scope. Install the release that this
 repository pins — later releases usually work, but they are not what the tests run against:
@@ -108,15 +109,15 @@ Every code push to `master` publishes `0.9.0-nightly.{yyyyMMdd}.{shortSha}` to G
 
 ```bash
 # Add the GitHub Packages source (PAT: classic token with the read:packages scope)
-dotnet nuget add source https://nuget.pkg.github.com/Blind-Striker/index.json \
+dotnet nuget add source https://nuget.pkg.github.com/opencode-dotnet/index.json \
   --name github-opencode-sdk \
   --username YOUR_GITHUB_USERNAME \
   --password YOUR_GITHUB_PAT \
   --store-password-in-clear-text
 
 # Install the nightly packages
-dotnet add package OpenCodeAI.Sdk --prerelease --source github-opencode-sdk
-dotnet add package OpenCodeAI.Sdk.Extensions --prerelease --source github-opencode-sdk
+dotnet add package OpenCodeDotNet.Sdk --prerelease --source github-opencode-sdk
+dotnet add package OpenCodeDotNet.Sdk.Extensions --prerelease --source github-opencode-sdk
 ```
 
 <details>
@@ -127,7 +128,7 @@ dotnet add package OpenCodeAI.Sdk.Extensions --prerelease --source github-openco
 <configuration>
   <packageSources>
     <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-    <add key="github-opencode-sdk" value="https://nuget.pkg.github.com/Blind-Striker/index.json" />
+    <add key="github-opencode-sdk" value="https://nuget.pkg.github.com/opencode-dotnet/index.json" />
   </packageSources>
   <packageSourceCredentials>
     <github-opencode-sdk>
@@ -210,7 +211,7 @@ if (server is null)
 using var client = server.CreateClient();
 ```
 
-The [connection guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/connection-modes.md)
+The [connection guide](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/connection-modes.md)
 has every option, `EnsureAsync`, `StopAsync`, launcher output capture, and pairing another client.
 
 ### Dependency injection
@@ -247,18 +248,18 @@ binding uses reflection, so that overload is annotated `[RequiresDynamicCode]` a
 
 | Guide | What it covers |
 |---|---|
-| [**The guide**](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/README.md) | Index of every page below, in reading order |
-| [Getting started](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/getting-started.md) | Install, first call, and the shape of the client family |
-| [Connection modes](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/connection-modes.md) | The standalone launcher, an external server, the background service, pairing, and DI registration |
-| [Streaming](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/streaming.md) | The global event bus and per-session server-sent event streams |
-| [Terminals](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/terminals.md) | PTY and persistent-PTY sessions over the WebSocket doors |
-| [Errors and responses](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/errors-and-responses.md) | Throwing versus `NoThrow`, and the typed error model |
-| [Pagination](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/pagination.md) | Cursor-carrying list envelopes, `Enumerate*Async`, and its `Pages` |
-| [Requests](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/requests.md) | Request records, the absent/null/set states of `Optional<T>`, query members, per-call location, and the permission, worktree, and shell-timeout members |
+| [**The guide**](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/README.md) | Index of every page below, in reading order |
+| [Getting started](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/getting-started.md) | Install, first call, and the shape of the client family |
+| [Connection modes](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/connection-modes.md) | The standalone launcher, an external server, the background service, pairing, and DI registration |
+| [Streaming](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/streaming.md) | The global event bus and per-session server-sent event streams |
+| [Terminals](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/terminals.md) | PTY and persistent-PTY sessions over the WebSocket doors |
+| [Errors and responses](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/errors-and-responses.md) | Throwing versus `NoThrow`, and the typed error model |
+| [Pagination](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/pagination.md) | Cursor-carrying list envelopes, `Enumerate*Async`, and its `Pages` |
+| [Requests](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/requests.md) | Request records, the absent/null/set states of `Optional<T>`, query members, per-call location, and the permission, worktree, and shell-timeout members |
 
 Architecture, decision records, and engineering policy live under
-[`docs/`](https://github.com/Blind-Striker/opencode-sdk-dotnet/tree/master/docs). Start at
-[`AGENTS.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/AGENTS.md) for the
+[`docs/`](https://github.com/opencode-dotnet/opencode-sdk-dotnet/tree/master/docs). Start at
+[`AGENTS.md`](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/AGENTS.md) for the
 internals.
 
 ## 🚀 Platform Compatibility & Quality Status
@@ -272,32 +273,32 @@ internals.
 Both packages target `netstandard2.0;net472;net8.0;net9.0;net10.0`. The whole suite runs on
 `net472` on Windows, real-process launcher tests included, and on `net8.0`, `net9.0`, and `net10.0`
 on Windows, Linux, and macOS. A .NET Framework project needs a newer C# version than its default;
-the [getting-started guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/getting-started.md#net-framework-projects)
+the [getting-started guide](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/getting-started.md#net-framework-projects)
 has the two properties to set.
 
 ### Build & Test Matrix
 
 | Category | Platform/Type | Status | Description |
 |----------|---------------|--------|-------------|
-| **🔧 Build** | Cross-Platform | [![CI](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml/badge.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/ci.yml) | Matrix: Windows, Linux, macOS |
-| **🧪 Tests** | Linux | [![Linux Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Flinux%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/linux/blind-striker/opencode-sdk-dotnet/master) | `net8.0`, `net9.0`, `net10.0` |
-| **🧪 Tests** | Windows | [![Windows Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Fwindows%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/windows/blind-striker/opencode-sdk-dotnet/master) | `net472` plus every modern target |
-| **🧪 Tests** | macOS | [![macOS Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Fmacos%2Fblind-striker%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/macos/blind-striker/opencode-sdk-dotnet/master) | `net8.0`, `net9.0`, `net10.0` |
-| **📡 Consumer leg** | Linux, Windows | [![Consumer leg](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/consumer-leg.yml/badge.svg)](https://github.com/Blind-Striker/opencode-sdk-dotnet/actions/workflows/consumer-leg.yml) | Weekly and on demand: the same suite against the published `@opencode/cli` build for the pin |
+| **🔧 Build** | Cross-Platform | [![CI](https://github.com/opencode-dotnet/opencode-sdk-dotnet/actions/workflows/ci.yml/badge.svg)](https://github.com/opencode-dotnet/opencode-sdk-dotnet/actions/workflows/ci.yml) | Matrix: Windows, Linux, macOS |
+| **🧪 Tests** | Linux | [![Linux Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Flinux%2Fopencode-dotnet%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/linux/opencode-dotnet/opencode-sdk-dotnet/master) | `net8.0`, `net9.0`, `net10.0` |
+| **🧪 Tests** | Windows | [![Windows Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Fwindows%2Fopencode-dotnet%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/windows/opencode-dotnet/opencode-sdk-dotnet/master) | `net472` plus every modern target |
+| **🧪 Tests** | macOS | [![macOS Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.localstackfor.net%2Fbadges%2Ftests%2Fmacos%2Fopencode-dotnet%2Fopencode-sdk-dotnet%2Fmaster)](https://api.localstackfor.net/redirect/test-results/macos/opencode-dotnet/opencode-sdk-dotnet/master) | `net8.0`, `net9.0`, `net10.0` |
+| **📡 Consumer leg** | Linux, Windows | [![Consumer leg](https://github.com/opencode-dotnet/opencode-sdk-dotnet/actions/workflows/consumer-leg.yml/badge.svg)](https://github.com/opencode-dotnet/opencode-sdk-dotnet/actions/workflows/consumer-leg.yml) | Weekly and on demand: the same suite against the published `@opencode/cli` build for the pin |
 
 ### 📦 Package Status
 
 | Package | NuGet.org | GitHub Packages |
 |---------|-----------|-----------------|
-| **OpenCodeAI.Sdk** | [![NuGet](https://img.shields.io/nuget/vpre/OpenCodeAI.Sdk)](https://www.nuget.org/packages/OpenCodeAI.Sdk) | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCodeAI.Sdk) |
-| **OpenCodeAI.Sdk.Extensions** | [![NuGet](https://img.shields.io/nuget/vpre/OpenCodeAI.Sdk.Extensions)](https://www.nuget.org/packages/OpenCodeAI.Sdk.Extensions) | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/Blind-Striker/opencode-sdk-dotnet/pkgs/nuget/OpenCodeAI.Sdk.Extensions) |
+| **OpenCodeDotNet.Sdk** | [![NuGet](https://img.shields.io/nuget/vpre/OpenCodeDotNet.Sdk)](https://www.nuget.org/packages/OpenCodeDotNet.Sdk) | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/opencode-dotnet/opencode-sdk-dotnet/pkgs/nuget/OpenCodeDotNet.Sdk) |
+| **OpenCodeDotNet.Sdk.Extensions** | [![NuGet](https://img.shields.io/nuget/vpre/OpenCodeDotNet.Sdk.Extensions)](https://www.nuget.org/packages/OpenCodeDotNet.Sdk.Extensions) | [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-nightly-blue)](https://github.com/opencode-dotnet/opencode-sdk-dotnet/pkgs/nuget/OpenCodeDotNet.Sdk.Extensions) |
 
 ## Known Issues
 
 - **The event bus has no replay.** `EventsClient.SubscribeAsync` is a live stream: events published
   while you are disconnected are lost, and a consumer slower than the producer can overflow and
   fail the stream. This is the server's contract, not an SDK limitation. See the
-  [streaming guide](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/streaming.md).
+  [streaming guide](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/streaming.md).
 
 - **A CLI-started server's session log holds only the sync marker.** The per-session log reads from
   the server's event store, and the distributed `opencode` CLI starts its server without event
@@ -315,41 +316,41 @@ has the two properties to set.
 
 - **Each terminal connection allocates a 16 KiB receive buffer**, reused across reads. The receiver
   also queues frames that nobody reads, so a slow or absent consumer can grow memory. See the
-  [terminal lifetime contract](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/architecture/client-runtime.md).
+  [terminal lifetime contract](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/architecture/client-runtime.md).
 
 ## Developing
 
 We appreciate contributions in the form of feedback, bug reports, and pull requests. Read
-[CONTRIBUTING.md](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/.github/CONTRIBUTING.md)
+[CONTRIBUTING.md](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/.github/CONTRIBUTING.md)
 first — it has the full gate and the commit convention.
 
 ```bash
-git clone --recurse-submodules https://github.com/Blind-Striker/opencode-sdk-dotnet.git
+git clone --recurse-submodules https://github.com/opencode-dotnet/opencode-sdk-dotnet.git
 cd opencode-sdk-dotnet
 dotnet build --configuration Release
 ```
 
 `external/` holds read-only upstream submodules: protocol evidence, and the pinned server that the
 fixture-backed tests run. Those tests also need Bun, the pinned server's dependencies, and
-ripgrep; [`docs/engineering/quality-gates.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/engineering/quality-gates.md)
+ripgrep; [`docs/engineering/quality-gates.md`](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/engineering/quality-gates.md)
 has the versions and the full completion gate.
 
-[`tests/OpenCode.Sdk.Sandbox`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/tests/OpenCode.Sdk.Sandbox/README.md)
+[`tests/OpenCode.Sdk.Sandbox`](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/tests/OpenCode.Sdk.Sandbox/README.md)
 is a committed playground that drives the SDK against a real `opencode serve` under a debugger.
 
 ## Community
 
 Got questions or wild feature ideas?
 
-👉 Open an [issue](https://github.com/Blind-Striker/opencode-sdk-dotnet/issues) — bug reports,
+👉 Open an [issue](https://github.com/opencode-dotnet/opencode-sdk-dotnet/issues) — bug reports,
 questions, and proposals all land there for now.
 
 ## Changelog
 
-Please refer to [`CHANGELOG.md`](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/CHANGELOG.md) to see the complete list of changes for each release.
+Please refer to [`CHANGELOG.md`](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/CHANGELOG.md) to see the complete list of changes for each release.
 
 ## License
 
-Licensed under MIT, see [LICENSE](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/LICENSE) for the full text. Content derived from
+Licensed under MIT, see [LICENSE](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/LICENSE) for the full text. Content derived from
 upstream opencode carries its own notice in
-[THIRD-PARTY-NOTICES.md](https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/THIRD-PARTY-NOTICES.md).
+[THIRD-PARTY-NOTICES.md](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/THIRD-PARTY-NOTICES.md).

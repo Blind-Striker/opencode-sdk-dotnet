@@ -18,7 +18,7 @@ maintenance.
 | Protocol provenance | `spec/SNAPSHOT.md` | Exact upstream pin and refresh procedure |
 
 Dated research evidence and session operations live in a private companion repository
-(`Blind-Striker/opencode-sdk-dotnet-internal`); the canonical documentation here is complete
+(`opencode-dotnet/opencode-sdk-dotnet-internal`); the canonical documentation here is complete
 without it.
 
 Repository files and current canonical documents beat memory, dated research, transient plans, and

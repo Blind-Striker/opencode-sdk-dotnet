@@ -4,8 +4,8 @@ contact_links:
     url: https://github.com/anomalyco/opencode/issues
     about: Wrong server behaviour, a route that fails under any client, a missing API — report it upstream, not here.
   - name: Report a security vulnerability
-    url: https://github.com/Blind-Striker/opencode-sdk-dotnet/security/advisories/new
+    url: https://github.com/opencode-dotnet/opencode-sdk-dotnet/security/advisories/new
     about: Private advisory. Please do not open a public issue for a vulnerability.
   - name: How do I use this?
-    url: https://github.com/Blind-Striker/opencode-sdk-dotnet/blob/master/docs/guide/README.md
+    url: https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/docs/guide/README.md
     about: The guide covers installing, connecting, streaming, terminals, errors, and pagination.

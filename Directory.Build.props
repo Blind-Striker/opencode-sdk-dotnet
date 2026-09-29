@@ -15,16 +15,12 @@
     <Company>Deniz İrgin</Company>
     <Owners>Deniz İrgin</Owners>
     <Copyright>Copyright (c) 2026 Deniz İrgin</Copyright>
-    <RepositoryUrl>https://github.com/Blind-Striker/opencode-sdk-dotnet</RepositoryUrl>
+    <RepositoryUrl>https://github.com/opencode-dotnet/opencode-sdk-dotnet</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <PackageProjectUrl>https://github.com/Blind-Striker/opencode-sdk-dotnet</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/opencode-dotnet/opencode-sdk-dotnet</PackageProjectUrl>
     <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <!-- The package id prefix every packable project builds its PackageId from. The published ids
-         are OpenCodeAI.*; the OpenCodeDotNet publish lane packs the same build with its own prefix
-         to hold that one too (docs/architecture/platform-and-packaging.md). -->
-    <PackageIdPrefix Condition="'$(PackageIdPrefix)' == ''">OpenCodeAI</PackageIdPrefix>
     <CheckEolTargetFramework>true</CheckEolTargetFramework>
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
 

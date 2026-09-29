@@ -327,11 +327,15 @@ jobs:
 
       # dotnet nuget push implements its own glob expansion; the path is quoted so the shell does
       # not expand it first (two packable projects produce two .nupkg files here).
+      #
+      # The feed is the repository owner's, so it follows the repository: GitHub Packages links a
+      # pushed package to a repository only when the nuspec's repository URL has the same owner.
       - name: Push to GitHub Packages
         env:
           PACKAGES_KEY: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGES_FEED: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
         run: >
           dotnet nuget push "packages/*.nupkg"
-          --source https://nuget.pkg.github.com/Blind-Striker/index.json
+          --source "$PACKAGES_FEED"
           --api-key "$PACKAGES_KEY"
           --skip-duplicate

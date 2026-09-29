@@ -51,15 +51,13 @@ Two separate API vintages shape the downlevel legs, and conflating them would mi
 - `OpenCode.Sdk.Extensions` owns dependency-injection registration. DI dependencies do not enter the
   core package.
 - The two names above are assembly and namespace names. The published package ids are
-  `OpenCodeAI.Sdk` and `OpenCodeAI.Sdk.Extensions`, because nuget.org reserves the `OpenCode.`
-  prefix for an unrelated owner. The same build is also published as `OpenCodeDotNet.Sdk` and
-  `OpenCodeDotNet.Sdk.Extensions` from its own manual lane (`publish-nuget-opencodedotnet.yml`) to
-  hold that prefix too. Both manual lanes take the commit to pack as a required input and refuse a
-  commit that `master` does not contain, so one version is one commit under both prefixes. Each
-  packable project builds its own `PackageId` from `PackageIdPrefix`
-  (`Directory.Build.props`, `OpenCodeAI` unless a lane passes another); the assemblies, the public
-  namespaces, and therefore consumer source are unaffected, and a project reference packs as a
-  dependency on the corresponding package id under the same prefix.
+  `OpenCodeDotNet.Sdk` and `OpenCodeDotNet.Sdk.Extensions`, because nuget.org reserves the
+  `OpenCode.` prefix for an unrelated owner. Each packable project states its own `PackageId`, and
+  a project reference packs as a dependency on the referenced project's package id; the
+  assemblies, the public namespaces, and therefore consumer source are unaffected by the ids. The
+  manual publish lane takes the commit to pack as a required input, refuses a commit that `master`
+  does not contain, and reads both ids back from the packages before any push. The earlier ids,
+  `OpenCodeAI.Sdk` and `OpenCodeAI.Sdk.Extensions`, receive no further versions.
 - Exact package references and dependency versions are read from project files and
   `Directory.Packages.props`. Documentation records policy, not a second version inventory.
 - A future package is added only for a real distribution boundary; repository layout alone does
