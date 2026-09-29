@@ -4,7 +4,6 @@ Date: 2026-08-08
 
 Status: the repository placement is superseded by ADR-0030; independent versioning stands.
 
-
 The MCP server is developed in this repository, not a separate one. It is by design a thin
 adapter over our own SDK, and that architecture wants compile-time coupling: SDK breaking
 changes surface in the same CI run instead of after a publish (a cross-repo dependency on
