@@ -9,6 +9,13 @@ Nightly builds of `master` are on
 [GitHub Packages](README.md#nightly-builds-github-packages) as
 `0.9.0-nightly.{yyyyMMdd}.{shortSha}`.
 
+## [0.9.0-preview.5] - 2026-09-29
+
+**The packages are now `OpenCodeDotNet.Sdk` and `OpenCodeDotNet.Sdk.Extensions`, and the
+repository lives in the `opencode-dotnet` organization.** The API is unchanged: only the
+`PackageReference` changes. The release also fixes thread-pool starvation from standalone servers
+on Windows.
+
 ### 💥 Breaking changes
 
 - **The packages are now `OpenCodeDotNet.Sdk` and `OpenCodeDotNet.Sdk.Extensions`.** Change the
@@ -726,6 +733,7 @@ migration to perform, because no earlier version was ever published.
 - **Pre-1.0 API.** The public surface is locked by a reviewed baseline, but it may still move
   before `1.0.0`. Breaking changes will be called out here with impact and migration path.
 
+[0.9.0-preview.5]: https://github.com/opencode-dotnet/opencode-sdk-dotnet/releases/tag/v0.9.0-preview.5
 [0.9.0-preview.4]: https://github.com/opencode-dotnet/opencode-sdk-dotnet/releases/tag/v0.9.0-preview.4
 [0.9.0-preview.3]: https://github.com/opencode-dotnet/opencode-sdk-dotnet/releases/tag/v0.9.0-preview.3
 [0.9.0-preview.2]: https://github.com/opencode-dotnet/opencode-sdk-dotnet/releases/tag/v0.9.0-preview.2
