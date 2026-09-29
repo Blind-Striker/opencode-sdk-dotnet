@@ -7,6 +7,13 @@
 > **Unofficial.** This project is not affiliated with or endorsed by the
 > [opencode](https://opencode.ai) team.
 
+> **📦 New package ids and a new home (`0.9.0-preview.5`).** The packages are now
+> [`OpenCodeDotNet.Sdk`](https://www.nuget.org/packages/OpenCodeDotNet.Sdk) and
+> [`OpenCodeDotNet.Sdk.Extensions`](https://www.nuget.org/packages/OpenCodeDotNet.Sdk.Extensions);
+> `OpenCodeAI.Sdk` and `OpenCodeAI.Sdk.Extensions` are deprecated. Namespaces are unchanged, so
+> only the `PackageReference` changes. The repository moved to the `opencode-dotnet` organization,
+> and old links redirect.
+
 A strongly typed .NET client for the [opencode](https://github.com/anomalyco/opencode) server — the
 HTTP API that every opencode front-end (TUI, desktop, web UI, plugins) uses. The SDK speaks the
 OpenCode 2.x API; the 1.x server API is not supported.
