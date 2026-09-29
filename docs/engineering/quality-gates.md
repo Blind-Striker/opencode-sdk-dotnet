@@ -58,7 +58,8 @@ back the policy globally. `.editorconfig` contains the established pattern.
   method. Split the dispatch into a named class instead of arbitrating the rule;
   `tests/OpenCode.Sdk.Sandbox/SandboxRunner.cs` records the precedent.
 
-Research doc 07 records the claim verification, community comparison, and rule arbitration behind
+Internal research, 2026-08-08, "Analyzer & .editorconfig policy: claim verification + community
+survey", records the claim verification, community comparison, and rule arbitration behind
 this policy.
 
 ## Completion gate

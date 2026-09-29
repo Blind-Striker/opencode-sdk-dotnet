@@ -38,4 +38,5 @@ upstream, recorded as research, and reported upstream rather than becoming a hid
 Reconsider only if upstream publishes a richer versioned machine-readable contract, or this
 project deliberately adopts a second pinned, reproducible protocol artifact through a new ADR.
 
-Evidence: research log Q107–Q108.
+Evidence: internal research, 2026-08-17, "What may curation change?" and "Which evidence follows
+from the reset?".

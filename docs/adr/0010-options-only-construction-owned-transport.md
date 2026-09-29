@@ -12,11 +12,13 @@ client (sub-clients resolved from the same instance) without `IHttpClientFactory
 `Microsoft.Extensions.Http` dependency. Premise: a local-first daemon SDK ships to
 production simple — transport extensibility is not built before a concrete consumer need,
 and the asymmetry favors omission (re-adding a public constructor is additive; removing
-one post-GA is a breaking major). This reverses the same-day Q91 seal on a changed
-premise, not on evidence against it: doc 16's grounds for rejecting internalize+IVT
-(stock `AddHttpClient<TClient>()` support, the factory-path guard) both dissolve once
-neither surface exists, and Q91's anonymous-mode and `BaseAddress` guard machinery
-deletes with the doors it defended. Evidence: research doc 16, research log Q90–Q92.
+one post-GA is a breaking major). This reverses the same-day seal that kept the caller-owned
+constructor public, on a changed premise, not on evidence against it: the transport survey's
+grounds for rejecting internalize+IVT (stock `AddHttpClient<TClient>()` support, the factory-path
+guard) both dissolve once neither surface exists, and that seal's anonymous-mode and `BaseAddress`
+guard machinery deletes with the doors it defended. Evidence: internal research, 2026-08-14,
+"Caller-supplied transport: BYO-HttpClient precedent survey" and "How do client construction,
+options, and DI align with .NET conventions?", with its two follow-ups of 2026-08-15.
 
 ## Consequences
 
@@ -32,4 +34,4 @@ deletes with the doors it defended. Evidence: research doc 16, research log Q90�
   end-to-end, one pipeline, no transient-disposable tracking; a roster contract test
   keeps sub-client registrations complete as families grow.
 - Reversal trigger: a concrete consumer demand that ambient mechanisms cannot meet — not
-  ecosystem parity alone (doc 16 already documents that parity).
+  ecosystem parity alone (the transport survey already documents that parity).

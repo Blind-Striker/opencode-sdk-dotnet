@@ -8,7 +8,7 @@ parity bar — `@opencode/client` ships `Service.ensure()`, which spawns `openco
 from inside the client package — and the MCP C# SDK does the same (`StdioClientTransport` spawns
 inside `ModelContextProtocol.Core`; kept as reference implementation). Evidence and lifecycle
 anatomy: internal research, 2026-08-08, ".NET SDK design decisions: packaging, process management,
-TFMs"; research log Q12.
+TFMs" and "Process management: CliWrap, raw Process, or the new .NET APIs?".
 
 The background-service door's process control (ADR-0026) binds one function of the platform C
 library, `kill(2)`, for the Unix signal rungs that `System.Diagnostics.Process` cannot send; that

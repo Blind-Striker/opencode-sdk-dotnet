@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-09-27
+Date: 2026-09-29
 
 Operational state: what ships today, what is queued next, what is still open, and what is known to
 be incomplete. This file is a summary and shrinks as work lands. `../AGENTS.md` routes to the
@@ -28,7 +28,7 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
   targets. Linux and macOS live verification also passed on net8/net9/net10, including the persistent daemon
   round trip and normal PTY reuse after read cancellation. `architecture/client-runtime.md` and
   ADR-0023 own the contract.
-- **2.0.18 refresh** — the accepted pin follows upstream's release tags inside M4, now `v2.0.18`,
+- **2.0.18 refresh** — the accepted pin follows upstream's release tags, now `v2.0.18`,
   with no compatibility layer between them. 2.0.18 adds two operations, both generated: pairing
   (`Server.CreatePairingCodeAsync`, `Server.RedeemPairingCodeAsync`), whose session token the server
   accepts anywhere the password is; and `ShellInfo` gains the `Signal` a killed command reports. A
@@ -44,7 +44,7 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
   the `@opencode/cli` npm package, the one this SDK pins and its guides install; the 1.x line
   continues beside it as `opencode-ai` (`1.18.33` on 2026-09-28), and upstream's GitHub Releases page
   still lists 1.x releases. The pin tracks upstream 2.x release tags and is refreshed under receipt
-  at milestone boundaries. The accepted protocol identity is owned by `../spec/SNAPSHOT.md`.
+  before a release. The accepted protocol identity is owned by `../spec/SNAPSHOT.md`.
 - **Packages** — the two packages publish as `OpenCodeDotNet.Sdk` and
   `OpenCodeDotNet.Sdk.Extensions` (the assemblies stay `OpenCode.Sdk`) and pack at the
   single-sourced `VersionPrefix 0.9.0`. Every `master` push publishes a `0.9.0-nightly.*` build to
@@ -53,78 +53,72 @@ accepted OpenAPI snapshot and rides one hand-written transport runtime.
   `OpenCodeDotNet` because nuget.org reserves the `OpenCode.` prefix for an unrelated owner. The
   earlier ids, `OpenCodeAI.Sdk` and `OpenCodeAI.Sdk.Extensions`, receive no further versions.
 
-## Milestones
+## Road to 1.0
 
-Deliverable-first: every milestone ends in something callable or demonstrable. The next milestone
-gets a short (1–2 page) plan when it starts — never earlier. Ordering beyond the current milestone
-is revisited at each boundary.
+`1.0.0` is the first stable release; the public surface freezes before it. Releases stay
+`0.9.0-preview.N` until the freeze, then ship as `1.0.0-rc.N`, then `1.0.0`; between those points a
+pin refresh or a fix round ships as the next preview or release candidate. Each workstream has a
+short plan in the private companion repository when it starts, and the project board holds the
+live queue. In order:
 
-1. **M1 — Walking skeleton.** `v2.health.get` and `v2.session.message` end to end: pinned document
-   through binding and emission to committed generated source, over a hand-written transport, with
-   typed errors and `NoThrow`. **Complete.**
-2. **M2 — Breadth batches.** The generation profile grows in vertical operation batches, each
-   landing its curation rows, reachable models, operation methods, and contract tests together, and
-   the Extensions package grows alongside. **Complete.**
-3. **M3 — Streams.** The construction reshape (ADR-0010), the location and merged-request
-   marshalling design, the SSE engine over the v2 stream surface, the cursor paginator (ADR-0017),
-   the owned-transport and `net472` gate, and a measured performance pass. **Complete.**
-4. **M4 — Launcher and process truth.** Parity with upstream's three connection modes: standalone
-   start, explicit endpoint, and the registration-file background service. The standalone door
-   (`OpenCodeServer.StartAsync`, ADR-0001) and the explicit-endpoint validation option are landed
-   with three-OS acceptance, an exact-pin server fixture, and a deterministic simulated-model
-   session workflow (ADR-0022). **The background-service parity arc has landed** — its three
-   doors: `OpenCodeServer.DiscoverAsync` over the registration file — an
-   upstream-observed contract outside the OpenAPI pin, so source-watched (ADR-0024, ADR-0025) —
-   with a non-owning handle (`OwnsProcess`), the CLI's channel, migration, and status rules, and
-   live proof against the pin's own `serve --service` daemon on every runtime leg; and
-   `OpenCodeServer.StopAsync`, the CLI's `service stop` — persistent terminals shut down through
-   the generated door, the handoff sidecar cleared, the registered process ended by the pinned
-   `SIGTERM`/`SIGKILL` ladder (hard kills on Windows) with the registration re-read before every
-   signal and the process identified by pid and start time (ADR-0026), and the registration
-   removed once the process is gone — proven against the pin's own daemon and against a process
-   that ignores the first rung; and `OpenCodeServer.EnsureAsync`, the CLI's managed-service
-   election — reusing a ready compatible daemon, replacing a version-mismatched one under an
-   `Ignore`/`Replace`/`Error` policy, and otherwise spawning detached contenders until one
-   registers or the 120-second bound expires, with the persistent-terminal handoff sidecar
-   travelling across replacement — proven against the pin's own daemon from source (the live runs
-   reach the handoff with no persistent terminal open, so the ticket-carrying path is proven by the
-   loopback tests, not live) and, on the weekly consumer leg, against the published CLI.
-   **Two generator slices rode inside M4 and have landed.** Fail-closed operation naming
-   ([#86](https://github.com/opencode-dotnet/opencode-sdk-dotnet/issues/86)): the HTTP method is
-   never a name source — the closed grammar names an operation or a reason-bearing
-   `operationNames` row does, handle clients name themselves rather than their family, and
-   request, response, and payload types follow the same rule (ADR-0008) — together with the
-   enum member naming channel ([#84](https://github.com/opencode-dotnet/opencode-sdk-dotnet/issues/84),
-   `McpProtocol.Revision20260728`). **Surface completeness** then admits the
-   operations that sit outside generation: `config.get` and `experimental.migration.v1.status`
-   through an ADR-0016 first-match arm that mirrors upstream's own union decode — token kind,
-   literal sentinel, declaration order, required-key presence — proven against upstream's real
-   decoder ([#87](https://github.com/opencode-dotnet/opencode-sdk-dotnet/issues/87)); `fs.read`
-   through upstream's own trailing-wildcard codegen rule and a binary response envelope
-   (ADR-0029); `experimental.fs.write` — the same family's octet-stream request body — as a
-   caller `Stream` beside its query record; and the two transport-owned WebSocket doors counted
-   as the covered operations they are. The accepted pin then moved under receipt to the newest
-   upstream release tag, `v2.0.18`, whose two pairing operations are generated, so all 138 of 138
-   operations are usable. **Complete** — released as `0.9.0-preview.4`.
-5. **M5 — Full surface.** Target admission over the refreshed surface, driven by the `refresh-spec`
-   synchronizer (ADR-0020) and the ownership pattern for the terminal families (ADR-0021). Coverage
-   has reached its end state; what remains is exclusion fingerprints for the transport-owned
-   operations (ADR-0008), the remaining package, API, and TFM assurance, and the operation inventory
-   and assurance ledger — which standardizes pending-operation bindability tracking, subsumes
-   `tools/generation-profile.txt` as the one hand-authored admission list, and makes per-operation
-   assurance mechanically complete: a contract test for every status arm the pinned document
-   declares, verifier-checked, with the arms no deterministic fixture can reach listed by name
-   rather than skipped silently (ADR-0022).
-6. **M6 — Operational closure.** Automation for the upstream observation lanes (tip detector,
-   candidate refresh), retry/telemetry/hooks with the public network-timeout knob and the
-   per-operation event-stream idle bound it gates, a quarantine lane, the nightly source-run
-   canary with the performance suite (ADR-0022), Restore-patch retirement, and an evaluation of
-   moving the repository to an organization for larger CI runners (GitHub larger runners and
-   third-party providers are organization-only; the three legs run on the free 4-vCPU public
-   runners today, macOS on 3). Also a publish-lane diet: the nightly job's `generate --verify`
-   repeats what the same run's lint job already proved on the same commit; and test
-   categorization (no test carries a category today; the only split is by project and by the
-   `*LiveTests` / `*ContractTests` names), so a lane can run a named subset.
+1. **Support policy.** The MCP server's repository (ADR-0030), the target-framework policy
+   (ADR-0002), and the end of the .NET 5–7 promise
+   ([#51](https://github.com/opencode-dotnet/opencode-sdk-dotnet/issues/51)). **Complete.**
+2. **Target-framework transition.** `net8.0` and `net9.0` leave when their support ends on
+   2026-11-10 and `net11.0` joins at its GA, across packages, tests, CI legs, the public API check,
+   and the docs. Exit: every leg runs `netstandard2.0`, `net472`, `net10.0`, and `net11.0` as its
+   platform allows.
+3. **Maintainability review.** A time-boxed, read-only review of the code, the generator, the
+   tests, and the canon at current `master`. Each finding goes to one of four places: the API
+   review, the 1.0 performance gate, a small fix now, or a parallel track. Exit: one triaged
+   finding list.
+4. **API review.** First the namespace layout — family namespaces or today's flat
+   `OpenCode.Sdk` and `OpenCode.Sdk.Models` — decided from a measured model-ownership analysis and
+   a one-family pilot. Then the parked handle questions (a parent-mediated handle door for flat
+   single-action families, a handle client's resource id as a property), the Extensions API
+   baseline and the remaining package, test-roster, and Native AOT assurance (#51), exclusion
+   fingerprints for the transport-owned operations (ADR-0008), and a bound for the terminal
+   receive queue, which is unbounded today. Exit: every surface question is decided.
+5. **Extension points.** How retry, telemetry, and hooks attach (the policy roster, ADR-0018),
+   and whether validated client configuration splits from the transport factory, decided so that
+   each capability lands additively after `1.0.0`. The public network-timeout option and the
+   per-operation event-stream idle bound it gates ship here, closing the half-open stream gap.
+   Exit: no planned capability needs a breaking construction change. The surface then freezes and
+   `1.0.0-rc.1` ships.
+6. **1.0 performance gate.** The benchmark coverage reviewed and extended with representative
+   scenarios, a generator baseline, and a full run of the suite on the release candidate. Exit: a
+   reviewed full run with no unexplained regression.
+7. **`1.0.0`.** Exit: `1.0.0` on NuGet.org, the `OpenCodeAI.*` popularity moved to
+   `OpenCodeDotNet.*`, and the README's rename notice gone.
+
+## Parallel tracks
+
+These do not block `1.0.0` and run beside the road.
+
+- **MCP server** in its own repository (ADR-0030), a thin adapter over the published SDK. Design
+  and scaffolding can start now; code against the SDK waits for the namespace decision.
+- **Maintainability follow-ups** that change no public surface: the folder layout (after the
+  namespace decision), the ADR and canon review, dead code, test-support ownership, and the
+  source-watch review.
+- **References point one way:** about 170 comments in source, tools, tests, and workflows still
+  cite documentation (`docs/…` paths and ADR numbers), against `engineering/documentation.md`.
+  Each explains its status quo locally instead; generator-emitted comments change through the
+  generator.
+- **Test categorization**, so a lane can run a named subset. No test carries a category today; the
+  only split is by project and by the `*LiveTests` / `*ContractTests` names.
+- **Operations:** automation for the upstream observation lanes (tip detector, candidate refresh),
+  a quarantine lane, the nightly source-run canary with the performance suite (ADR-0022),
+  Restore-patch retirement, the operation inventory and assurance ledger (ADR-0022: a contract
+  test for every status arm the pinned document declares, verifier-checked, with the unreachable
+  arms listed by name), larger CI runners now that the repository is in an organization (paid),
+  and a publish-lane diet (the nightly job's `generate --verify` repeats what the same run's lint
+  job already proved).
+
+## After 1.0
+
+- Retry, telemetry, and hooks themselves, added through the extension points `1.0.0` fixes.
+- A Hosting package, if a concrete consumer — the MCP server or a first external host — needs
+  host-owned process lifecycle.
 
 ## Open Questions
 
@@ -144,17 +138,10 @@ is revisited at each boundary.
   value, a numeric range and a file path both invisible behind bare strings, a WebSocket close code
   overloaded across two causes, and two declared arms the handler cannot produce. Findings stay
   diagnostic and never feed generation or curation (ADR-0013).
-- **Release mechanics** — ADR-0006's shape is wired. The line stays a preview until the M-series
-  is complete: the minor number advances at each milestone boundary (`0.9.0-preview.N` when M4
-  lands, `0.10.0-preview.N` when M5 lands) and M6 closes it at `1.0.0`; between milestones only
-  the preview number moves, so a pin refresh or a fix round ships as the next `preview.N`. Open:
-  the release-notes flow.
-- **Deferred design questions, each parked behind a named trigger** — splitting validated client
-  configuration from the transport factory (reopens when M6 attaches telemetry or hooks, or when
-  Extensions gains a concrete named-client need); a parent-mediated handle door for flat
-  single-action families and exposing a handle client's resource id as a property (both additive, so
-  both wait for the packaging freeze's surface review); the generated folder and namespace layout
-  review; and the generator's remaining binding-locality extractions.
+- **Release notes** — each release's notes are its CHANGELOG section; whether that flow needs more
+  than a copy into the GitHub Release is open.
+- **The generator's remaining binding-locality extractions** — parked until a generator change
+  needs them.
 
 ## Known Gaps
 
@@ -208,8 +195,9 @@ is revisited at each boundary.
   because the server's keepalive comments carry no event and never reach the enumeration. The bound
   has to be per operation rather than a property of every SSE body: upstream writes a keepalive
   every fifteen seconds on `event.subscribe` and none on `session.log`, whose follow mode is
-  silent by design while a session is idle. Queued behind M6's public network-timeout knob so the
-  bound arrives configurable rather than as a behavior no caller can widen. Upstream's own clients
+  silent by design while a session is idle. The network-timeout option in the extension-points
+  workstream closes it, so the bound arrives configurable rather than as a behavior no caller can
+  widen. Upstream's own clients
   place this one layer above their core client, which does not reconnect either
   (`packages/client/src/solid/connection.ts`: two-second connect, forty-five-second idle abort,
   one-second reconnect delay, and an authoritative refetch once reconnected).

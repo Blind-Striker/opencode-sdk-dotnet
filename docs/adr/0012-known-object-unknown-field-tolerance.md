@@ -12,7 +12,8 @@ properties fails binding until both sides can be represented without loss. This 
 known-object counterpart to ADR-0009's unknown-variant tolerance, not a relaxation of build-time
 OpenAPI projection walls (ADR-0013).
 
-Evidence: research log Q103.
+Evidence: internal research, 2026-08-17, "How strict are fixed values and additive fields on known
+models?".
 
 ## Reversal trigger
 

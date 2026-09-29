@@ -10,4 +10,5 @@ or moving-target runs gate — ties green to nondeterministic model behavior and
 churn instead of to the contract a release actually ships against. Reversal trigger: an explicit
 release-policy decision that deliberately promotes external acceptance evidence.
 
-Evidence: research log Q148.
+Evidence: internal research, 2026-08-25, "What did the coverage-program grilling seal, and what did
+its fact-finding measure?".

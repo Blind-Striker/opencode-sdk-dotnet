@@ -13,15 +13,15 @@ ADR-0010's options-only construction stands: no public extensibility, no per-cal
 splicing, no mutation API. Premise: the previous shape concentrated ~13 lifecycle policies
 in two orchestration methods — four duplicated failure-classification cascades, three
 duplicated body-read sites, no framer or transport seam — so every cross-cutting change
-edited the same two methods, and M6's retry/telemetry/hook stages had no named place to
-stand; a retry policy now slots into the roster without reshaping either plane. Both peer
-runtimes read at source (Azure.Core `470fcf3`, AWS SDK for .NET `3cd03c5`) hide their
-runtime mass behind small policy/handler stages, send with response-headers-read, and
-classify cancel-versus-timeout by inspecting the caller's token first —
-`FailureClassification.Map(exception, phase, token)` centralizes that rule here.
-Redirects remain `TransportPolicy`'s refusal: a 3xx is a protocol invariant no operation
-can declare, so it is transport's rule, never an operation table's. Evidence: research
-log Q126–Q129 and the 2026-08-24 architecture scans recorded there.
+edited the same two methods, and the planned retry/telemetry/hook stages had no named place to
+stand; a retry policy now slots into the roster without reshaping either plane. Both peer runtimes
+read at source (Azure.Core `470fcf3`, AWS SDK for .NET `3cd03c5`) hide their runtime mass behind
+small policy/handler stages, send with response-headers-read, and classify cancel-versus-timeout by
+inspecting the caller's token first — `FailureClassification.Map(exception, phase, token)`
+centralizes that rule here. Redirects remain `TransportPolicy`'s refusal: a 3xx is a protocol
+invariant no operation can declare, so it is transport's rule, never an operation table's.
+Evidence: internal research, 2026-08-24, "Runtime pipeline architecture design", with the
+architecture scans it records.
 
 ## Consequences
 
@@ -34,13 +34,13 @@ log Q126–Q129 and the 2026-08-24 architecture scans recorded there.
   (`ServerSentEventFramer` constructs one stateful reader per body), and frame dispatch
   lives beside `IStreamAdapter`, so plane sequencing is testable with a scripted framer
   and dispatch with plain `ServerSentEvent` values — no HTTP involved.
-- M6 capabilities (retry, telemetry, hooks) land as new policies in the roster, not as
-  new branches inside a plane. Stream retry stays out of scope by canon: a live stream
-  is not replayable.
-- Companion seals recorded in research log Session 40 land with their own increments and
-  canon edits: the generated `StatusVerdict Classify(int)` as the single status
-  authority, and the progress-based network timeout on Azure's machinery.
+- Retry, telemetry, and hooks land as new policies in the roster, not as new branches inside a
+  plane. Stream retry stays out of scope by canon: a live stream is not replayable.
+- Companion seals from the same 2026-08-24 design land with their own increments and canon edits:
+  the generated `StatusVerdict Classify(int)` as the single status authority, and the
+  progress-based network timeout on Azure's machinery.
 - Reversal triggers: a demand for public pipeline extensibility or per-call policy
   splicing reopens ADR-0010's premise deliberately, never this composition silently; if
-  the A6 configuration/transport split triggers (M6 transport handlers or a concrete
-  `IHttpClientFactory` need), the transport stage is re-cut first.
+  the split of validated client configuration from the transport factory triggers (transport
+  handlers for retry, telemetry, or hooks, or a concrete `IHttpClientFactory` need), the transport
+  stage is re-cut first.

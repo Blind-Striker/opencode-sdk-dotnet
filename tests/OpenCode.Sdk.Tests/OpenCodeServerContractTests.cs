@@ -137,7 +137,7 @@ public sealed class OpenCodeServerContractTests
             .Select(property => property.Name)
             .ToArray();
 
-        // A newly added OpenCodeClientOptions behavior member (M6's queued timeout knob, for
+        // A newly added OpenCodeClientOptions behavior member (the queued network-timeout option, for
         // instance) lands here first: CreateClient's hand-written copy-list cannot know about it
         // on its own, so this assertion is what turns that silence loud instead of quiet. Extend
         // both the expected list and the propagation check below in the same change that adds

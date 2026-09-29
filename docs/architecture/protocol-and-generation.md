@@ -30,7 +30,7 @@ evidence and may contain superseded positions.
 - Derived model names strip Effect's encode-side `*Encoded` component suffix unless the unsuffixed
   component itself exists in the document — a mechanical projection-artifact rule owned by
   `ProjectionArtifactNamePolicy`, never a per-row curation act (maintainer-sealed
-  2026-08-27, research log Q150).
+  2026-08-27).
 
 ## Snapshot production
 

@@ -25,7 +25,8 @@ library warnings). A hand-written OpenAPI parser is rejected: it rebuilds a main
 standards layer, and its wall misreads the spec's edge population (unrestricted `{}`
 schemas: 19 sites, which grep-based counting undercounts as 6). Using a reader library
 is not adopting a foreign code generator — Kiota/NSwag/OpenAPI Generator remain
-eliminated on the run evidence above. Evidence and prototypes: research log session 12.
+eliminated on the run evidence above. Evidence and prototypes: internal research, 2026-08-11,
+"Redesign research: Microsoft.OpenApi ingestion".
 
 The pinned document is also the sole protocol-semantic input (ADR-0013). Curation reaches the
 Binder only to organize the represented OpenAPI surface; upstream TypeScript/Effect source never

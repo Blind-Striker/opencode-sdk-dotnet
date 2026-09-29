@@ -11,12 +11,14 @@ mechanical generator rule, no curation; it
 applies to events, error unions, and every other tagged union alike. Mechanism: a
 generator-emitted custom converter per union base — System.Text.Json's
 `UnknownDerivedTypeHandling` is serialization-side only and cannot express
-deserialization fallback (codegen spike: unknown discriminator throws, research doc
-08) — scanning a copied reader for the tag and dispatching known values directly through
+deserialization fallback (codegen spike: unknown discriminator throws; internal research,
+2026-08-08, "Codegen spike: the model-layer mechanism") — scanning a copied reader for the tag and
+dispatching known values directly through
 the source-generated context so the AOT commitment holds. Only an unknown value buffers
 the element needed by its raw carrier. This resolves the
 forward-compatibility question the codegen spike parked; the tolerance is a recorded
-runtime exception to the fail-closed default (API design spec §2.1/§14).
+runtime exception to the fail-closed default (§2.1 and §14 of the internal public API design spec,
+2026-08-09).
 
 The tolerance covers **payload** discriminators, not framing. An event stream's frame name
 is the channel that says whether a frame is a payload at all, so an unrecognized name is

@@ -1,6 +1,7 @@
 # opencode SDK for .NET
 
-Typed .NET client for the opencode HTTP API, plus an MCP server built on it. The domain is
+Typed .NET client for the opencode HTTP API; an MCP server built on it lives in a sibling
+repository. The domain is
 largely upstream's — opencode's concepts seen through an SDK lens — with a few terms this
 project coins for itself.
 

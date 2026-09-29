@@ -61,6 +61,13 @@ References point one way: documentation may cite code, but code artifacts never 
 Comments in source, project files, `.editorconfig`, workflows, and generated files explain the
 status quo locally; they do not point to movable prose or narrate decision history.
 
+Canonical documents — architecture, engineering, ADRs, and `CONTEXT.md` — never point at the
+private companion repository's paths or numbering (research-log questions, sessions, document
+numbers) or at `docs/ROADMAP.md` content, which moves as work lands. Dated evidence is cited inline
+by date and title, for example: internal research, 2026-08-24, "Runtime pipeline architecture
+design". Naming the ROADMAP as the home of operational state, as the table above and `AGENTS.md`
+do, is routing, not a reference.
+
 Audience decides placement. Knowledge shared by humans and agents belongs in architecture,
 engineering, ADR, domain, or operational documents; guidance needed only by coding agents belongs
 in `AGENTS.md` or the private companion repository.
