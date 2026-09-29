@@ -29,7 +29,8 @@ as an `ArgumentException`. Other boolean, numeric, and string literals remain or
 properties so the SDK preserves the wire value instead of validating or silently normalizing a
 representable server contradiction.
 
-Evidence for the model/nullability decision: research log Q106–Q109.
+Evidence for the model/nullability decision: internal research, 2026-08-17, "Where does SDK runtime
+validation stop?" and the questions after it on curation, evidence, and null materialization.
 
 ## Generator policy
 

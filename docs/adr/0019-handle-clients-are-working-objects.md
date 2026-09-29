@@ -36,9 +36,9 @@ emit, alongside the guidelines' virtual service methods, virtual client accessor
 resource client"): the handle clients hold the id privately today, and surfacing it is an
 additive follow-up recorded in the roadmap's freeze-time surface review.
 
-Consequences: placement changes are free until packaging freezes the public surface (M5);
+Consequences: placement changes are free until the public surface freezes before `1.0.0`;
 after the freeze a placement change is breaking, so a refresh that reshapes a family's per-id
 surface forces the decision to the next major version — that is this record's reversal
 trigger. Adding a handle to a flat family later is additive and safe; removing one is not.
 Whether flat families should additionally expose parent-mediated id access as a convenience is
-deliberately parked in `docs/ROADMAP.md`, to be evaluated before the M5 freeze.
+deliberately parked, to be evaluated in the API review before the freeze.

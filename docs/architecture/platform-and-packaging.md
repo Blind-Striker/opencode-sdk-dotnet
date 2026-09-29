@@ -1,21 +1,25 @@
 # Platform and Packaging Architecture
 
-Date: 2026-09-08
+Date: 2026-09-29
 
 Canonical current rules for target frameworks, package boundaries, repository shape, versioning,
 distribution, dependencies, and licensing.
 
 ## Target frameworks
 
-The package matrix is:
+The package matrix follows Microsoft's support lifecycle: every modern .NET version Microsoft
+supports, plus `net472` and `netstandard2.0` (ADR-0002). It is:
 
 ```text
 netstandard2.0;net472;net8.0;net9.0;net10.0
 ```
 
+`net8.0` and `net9.0` leave when their support ends on 2026-11-10, and `net11.0` joins at its GA.
+
 `net472` owns .NET Framework-specific compile and runtime behavior. `netstandard2.0` is the broad
-compatibility bridge and has no runtime of its own; net472 legs proxy its downlevel behavior.
-`net11.0` is a post-1.0 light-up, not a current target (ADR-0002).
+compatibility bridge and has no runtime of its own; net472 legs proxy its downlevel behavior. It is
+a compatibility asset, not a supported runtime: a consumer on another runtime can install it, but
+support and testing cover the targeted runtimes only.
 
 Modern C# on downlevel targets is deliberate and supported inside this repository by the private,
 source-only Polyfill package. Exact package versions belong to `Directory.Packages.props`, not this
@@ -79,16 +83,15 @@ Two separate API vintages shape the downlevel legs, and conflating them would mi
 
 ## Repository and versioning
 
-The SDK and planned MCP server share one repository. The MCP server remains a thin adapter over the
-SDK, so its implementation compiles against SDK API changes in the same build (ADR-0006).
+The MCP server lives in a sibling repository of the `opencode-dotnet` organization and consumes the
+SDK as a published package; it remains a thin adapter over the SDK (ADR-0030).
 
 Every package versions independently. Package versions do not align with upstream opencode and do
 not move in lockstep with one another. Intra-repository compatibility uses ordinary NuGet dependency
 ranges (ADR-0006).
 
 The release policy is per-merge publication to GitHub Packages and a manual pipeline for NuGet.org.
-Pre-1.0 numbering and concrete workflow mechanics remain operational decisions until their release
-work is scheduled (ADR-0006).
+Pre-1.0 numbering is an operational decision, not a canon rule (ADR-0006).
 
 ## Licensing
 

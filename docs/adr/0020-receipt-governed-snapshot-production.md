@@ -43,4 +43,6 @@ bun toolchain with install scripts disabled, and never install upstream npm arti
   `docs/architecture/protocol-and-generation.md` with their implementing increments;
   `spec/SNAPSHOT.md` remains the identity owner.
 
-Evidence: research doc 21; research log Q139, Q147, Q148.
+Evidence: internal research, 2026-08-26, "OpenAPI projection fidelity: what the document does not
+carry, at two fixed points", and 2026-08-25, "Why did the spec refresh stop, and is the lost stream
+surface recoverable upstream?".

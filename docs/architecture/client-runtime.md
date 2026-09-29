@@ -122,7 +122,7 @@ local server launcher. Protocol and generated-model rules live in
   replay at 64Ki UTF-16 code units, so a chunk boundary can split a surrogate pair.
 - **Input.** A terminal's Enter key is carriage return (`\r`); `WriteAsync` sends exactly the
   bytes it is given, so a caller that uses the raw door must end the line with `\r` — `\n` renders
-  the text but never submits it on the Windows console host (research log Q151). `SubmitAsync` is
+  the text but never submits it on the Windows console host . `SubmitAsync` is
   the door for one command: it sends the line plus `\r` through the same serialized send path, and
   refuses a line carrying `\r` or `\n`, because one submit is one Enter and an embedded break
   would submit a command the caller did not write. An empty line is a bare Enter, and nothing else
@@ -479,13 +479,13 @@ composes two existing pieces: construct the client against the known endpoint, c
 `Server.GetInfoAsync` under a caller-owned `CancellationTokenSource(TimeSpan.FromSeconds(5))`, and
 compare the returned `ServerInfo.Version` against the caller's own expectation. The SDK carries no
 version comparand of its own — the accepted snapshot (`spec/SNAPSHOT.md`) is a protocol identity,
-not a runtime version — and the network-timeout knob a first-class helper would want is
-M6-deferred, so **no new public member lands for this door in this arc**: a dedicated helper would
+not a runtime version — and the network-timeout option a first-class helper would want does not exist
+yet, so **no new public member lands for this door in this arc**: a dedicated helper would
 need a version comparand the SDK does not have and would pre-empt a timeout channel that does not
 exist yet, and the generated client cannot gain members in this arc's territory. The recipe is
 documented here and demonstrated by the sandbox's `StandaloneServerWalkthrough`, which runs the same
 tail without `StartAsync` once a caller already holds an endpoint. *Noted for later:* revisit once
-the M6 network-timeout knob lands as an option rather than a caller-owned
+the network-timeout option lands rather than a caller-owned
 `CancellationTokenSource` — a bounded-probe helper only earns public surface at that point.
 
 **Background service** (`Service.discover/ensure/stop`, public export `@opencode/client/service`)

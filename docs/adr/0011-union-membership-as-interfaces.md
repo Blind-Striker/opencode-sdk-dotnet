@@ -8,7 +8,8 @@ class because a schema can belong to more than one union: 41 of the 43 branches 
 `Session.Event.Durable` are also direct branches of `V2Event`, so the same leaf must answer to both
 the durable log stream and the live event bus. C# allows one base class, and the binder already
 refuses this by name — *"schema cannot derive from both '…' and '…'"* — which would leave
-`event.subscribe`, the surface every upstream front-end consumes (research doc 02), permanently
+`event.subscribe`, the surface every upstream front-end consumes (internal research, 2026-08-17,
+"sdk-next, the embedded model, and why the HTTP surface is safe to build on"), permanently
 ungenerable. Interfaces make membership plural, and because both unions discriminate on the same
 wire field the leaf satisfies both contracts with one property.
 
@@ -112,7 +113,7 @@ The `net472` leg compiles here and is exercised by the Windows CI matrix (ADR-00
 ## Considered options
 
 - **Keep abstract-record bases and refuse the collision** — fail-closed and already implemented,
-  but it makes the live event bus ungenerable, against M5's complete generation profile.
+  but it makes the live event bus ungenerable, against a complete generation profile.
 - **Flip a union to an interface only when a leaf gains a second parent** — mechanical, but a
   spec refresh would then turn a shipped `abstract record` into an interface; the extend-only
   evolution posture exists to prevent exactly that.

@@ -5,7 +5,8 @@ Date: 2026-08-26
 The PTY family's center of gravity is a live WebSocket session — a transport ADR-0008 already
 excludes from generation — and a token handshake whose fixed `x-opencode-ticket` value exists only
 in upstream implementation source, which ADR-0013 forbids importing into generation; the generated
-public `PostConnectTokenAsync` shipped unusable as a result (research doc 21 O2, live-verified 403
+public `PostConnectTokenAsync` shipped unusable as a result (internal research, 2026-08-26,
+"OpenAPI projection fidelity", O2; live-verified 403
 without the header and 200 with it). Decision: every public door of the normal PTY family is
 hand-written — `PtysClient`, `PtyClient`, the token door, and the `PtySession` working object owning
 the WebSocket connection — while the generator retains the internal raw clients, operation
@@ -38,4 +39,5 @@ family-neutral socket core behind named decode, close, and upgrade seams.
   stays manifest-tracked and regen-verified like all generated output.
 - ADR-0019 placement is unchanged: PTYs remain working objects with handles.
 
-Evidence: research doc 21 §3.1/§5; research log Q146–Q148.
+Evidence: internal research, 2026-08-26, "OpenAPI projection fidelity" (§3.1, §5), and 2026-08-25,
+"What did the coverage-program grilling seal?".

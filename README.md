@@ -40,7 +40,8 @@ you already run, and the background service that the opencode CLI registers.
 - 📌 The SDK builds against a snapshot of an upstream release tag, never a live branch.
   [`spec/SNAPSHOT.md`](https://github.com/opencode-dotnet/opencode-sdk-dotnet/blob/master/spec/SNAPSHOT.md)
   owns the exact pin and the refresh procedure.
-- 🔜 An **MCP server** over this SDK is planned, not started.
+- 🔜 An **MCP server** over this SDK is planned, not started. It will live in its own repository
+  in the [opencode-dotnet](https://github.com/opencode-dotnet) organization.
 
 ## 💡 Why this SDK?
 

@@ -48,4 +48,5 @@ materialization or protocol walls rather than schema revalidation.
 - Concrete immutable collection types remain a pre-freeze benchmark/design question. Until that
   evidence exists, public collection surfaces stay `IReadOnly*` without claiming deep immutability.
 
-Evidence: research log Q106–Q109.
+Evidence: internal research, 2026-08-17, "Where does SDK runtime validation stop?" and the
+questions after it on curation, evidence, and null materialization.

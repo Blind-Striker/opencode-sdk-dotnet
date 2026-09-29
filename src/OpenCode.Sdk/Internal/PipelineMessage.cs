@@ -10,7 +10,7 @@ internal sealed class PipelineMessage : IDisposable
     /// <summary>Gets the decorated request; built by the plane, sent by <see cref="TransportPolicy"/>.</summary>
     public required HttpRequestMessage Request { get; init; }
 
-    /// <summary>The default per-read progress window; internal until M6 surfaces a knob.</summary>
+    /// <summary>The default per-read progress window; internal until the public network-timeout option lands.</summary>
     internal static readonly TimeSpan DefaultNetworkTimeout = TimeSpan.FromSeconds(100);
 
     /// <summary>Gets the caller's token, inspected first by every failure classification.</summary>

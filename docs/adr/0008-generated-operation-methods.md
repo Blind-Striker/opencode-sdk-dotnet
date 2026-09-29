@@ -6,8 +6,9 @@ Every operation method on the generated surface is generator-emitted
 as a one-line delegation into the hand-written behavior core; behavior (retry, error
 mapping, `NoThrow`, telemetry) never lives in method bodies. Hand-written op methods
 sit outside CI regen-verify and go silently stale as upstream moves — generated methods
-turn every spec drift into a loud diff or a broken build (research doc 06 §1's earlier
-hand-written-surface position was overturned by the maintainer on this argument).
+turn every spec drift into a loud diff or a broken build (the earlier hand-written-surface position
+of internal research, 2026-08-08, ".NET SDK design decisions: packaging, process management, TFMs"
+§1, was overturned by the maintainer on this argument).
 Hand-written remains the identity core: transport pipeline, SSE engine, launcher,
 exception hierarchy, envelope base, options types, DI extensions. One recorded
 family-ownership exception exists: the normal PTY family's public doors are hand-written
@@ -19,7 +20,8 @@ full — `text/event-stream` content, the `{id, event, data}` frame as the *deco
 (the wire omits `event:` and `id:` for an ordinary payload), and `data`'s payload through
 `contentSchema`/`contentMediaType`. That completeness is a property of the accepted
 snapshot, not of every upstream document — upstream's projection has demonstrably lost the
-SSE payload links (research doc 21 T1), and snapshot production repairs such loss under
+SSE payload links (internal research, 2026-08-26, "OpenAPI projection fidelity", T1), and snapshot
+production repairs such loss under
 ADR-0020 rather than weakening this rule. So the drift argument applies unchanged: the
 stream *engine* is behavior and stays in the core, while stream *endpoints* emit as
 one-line delegations into it, exactly like the one-shot surface. A stream yields

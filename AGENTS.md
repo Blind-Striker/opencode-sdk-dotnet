@@ -6,8 +6,8 @@ routing table below. Current status, queue, and open questions live in `docs/ROA
 
 ## Purpose
 
-Build a typed .NET SDK for the opencode HTTP API and, in the same repository, an MCP server that is
-a thin adapter over that SDK.
+Build a typed .NET SDK for the opencode HTTP API. An MCP server that is a thin adapter over this SDK
+lives in a sibling repository of the `opencode-dotnet` organization (ADR-0030).
 
 ## Universal Rules
 

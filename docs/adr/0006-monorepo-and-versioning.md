@@ -2,6 +2,9 @@
 
 Date: 2026-08-08
 
+Status: the repository placement is superseded by ADR-0030; independent versioning stands.
+
+
 The MCP server is developed in this repository, not a separate one. It is by design a thin
 adapter over our own SDK, and that architecture wants compile-time coupling: SDK breaking
 changes surface in the same CI run instead of after a publish (a cross-repo dependency on
@@ -14,7 +17,8 @@ Versioning and release: every package (`OpenCode.Sdk`, `OpenCode.Sdk.Extensions`
 server, future additions) versions independently — no lockstep family, and no alignment with
 upstream opencode versions (alignment was weighed and rejected: it would force our own
 features onto patch releases; the 2.0 rename wave is absorbed by an explicit breaking major
-instead — research log Q24). Intra-repo compatibility is expressed through ordinary NuGet
+instead — internal research, 2026-08-08, "Align NuGet versioning with upstream opencode
+versions?"). Intra-repo compatibility is expressed through ordinary NuGet
 dependency ranges. CD publishes per-merge (nightly) to GitHub Packages for all packages;
 NuGet.org releases run through a manual pipeline. No monorepo build tooling (Nx,
 dotnet-affected) at this scale; a small affected-style tool may be written if the need
@@ -23,6 +27,6 @@ materializes.
 ## Consequences
 
 - Distribution of the MCP server as a NuGet `McpServer`-type package is evaluated in the MCP
-  design phase (ROADMAP).
+  design phase.
 - A CI leg that packs the SDK and restores the MCP server against the local feed recovers the
   "dogfood the published artifact" benefit a separate repo would have had.
